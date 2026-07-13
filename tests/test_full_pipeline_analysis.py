@@ -78,6 +78,8 @@ class FullPipelineAnalyzerTests(unittest.TestCase):
             ccm=None,
             auto_exposure=True,
             denoising_strength=1.0,
+            chroma_denoising_strength=0.2,
+            luma_denoising_strength=0.3,
             enhancement_strength=0.8,
             sharpening_amount=2.0,
         )
@@ -90,12 +92,16 @@ class FullPipelineAnalyzerTests(unittest.TestCase):
         self.assertTrue(first_kwargs['auto_exposure'])
         self.assertEqual(first_kwargs['enhancement_strength'], 0.0)
         self.assertEqual(first_kwargs['sharpening_amount'], 0.0)
+        self.assertIsNone(first_kwargs['chroma_denoising_strength'])
+        self.assertIsNone(first_kwargs['luma_denoising_strength'])
 
         self.assertTrue(second_kwargs['photofinishing'])
         self.assertFalse(second_kwargs['auto_exposure'])
         self.assertTrue(second_kwargs['return_intermediate'])
         self.assertEqual(second_kwargs['enhancement_strength'], 0.8)
         self.assertEqual(second_kwargs['sharpening_amount'], 2.0)
+        self.assertEqual(second_kwargs['chroma_denoising_strength'], 0.2)
+        self.assertEqual(second_kwargs['luma_denoising_strength'], 0.3)
         self.assertTrue(torch.equal(second_kwargs['lsrgb'], fake.post_ae))
         self.assertTrue(torch.equal(second_kwargs['illum'], torch.tensor([0.5, 1.0, 0.8])))
         self.assertTrue(torch.equal(second_kwargs['ccm'], torch.eye(3)))
