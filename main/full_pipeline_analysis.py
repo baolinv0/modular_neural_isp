@@ -143,6 +143,37 @@ def to_jsonable(value: Any) -> Any:
     raise TypeError(f"Cannot convert {type(value).__name__} to a JSON-compatible value.")
 
 
+def summarize_parameter(value: Any, *, max_inline_values: int = 32) -> Any:
+    """Summarize a numeric parameter without expanding large tensors in JSON."""
+    if value is None:
+        return None
+    if max_inline_values < 0:
+        raise ValueError("max_inline_values must be non-negative.")
+    if torch.is_tensor(value):
+        array = value.detach().cpu().numpy()
+    elif isinstance(value, (np.ndarray, np.generic, int, float)):
+        array = np.asarray(value)
+    else:
+        raise TypeError(f"Expected a numeric parameter, got {type(value).__name__}.")
+    array = np.asarray(array)
+    if not np.issubdtype(array.dtype, np.number):
+        raise TypeError(f"Expected a numeric parameter, got dtype {array.dtype}.")
+    array64 = array.astype(np.float64, copy=False)
+    if not np.isfinite(array64).all():
+        raise ValueError("Parameter contains non-finite values.")
+    summary = {
+        "shape": list(array.shape),
+        "numel": int(array.size),
+        "min": float(array64.min()) if array.size else None,
+        "max": float(array64.max()) if array.size else None,
+        "mean": float(array64.mean()) if array.size else None,
+        "std": float(array64.std()) if array.size else None,
+    }
+    if array.size <= max_inline_values:
+        summary["values"] = to_jsonable(value)
+    return summary
+
+
 def _validate_keys(output: Mapping[str, Any], required: tuple[str, ...], pass_name: str) -> None:
     missing = [key for key in required if key not in output]
     if missing:
@@ -229,7 +260,6 @@ class FullPipelineAnalyzer:
             report_time=True,
             always_return_np=False,
         )
-
         first_start = perf_counter()
         first_output = self.pipeline(raw, **first_kwargs)
         first_seconds = perf_counter() - first_start
@@ -320,11 +350,11 @@ class FullPipelineAnalyzer:
                 "tint": to_jsonable(first_output.get("tint")),
             },
             "tone_parameters": {
-                "gain": to_jsonable(second_output.get("gain_param")),
-                "gtm": to_jsonable(second_output.get("gtm_param")),
-                "ltm": to_jsonable(second_output.get("ltm_param")),
-                "chroma_lut": to_jsonable(second_output.get("chroma_lut_param")),
-                "gamma": to_jsonable(second_output.get("gamma_param")),
+                "gain": summarize_parameter(second_output.get("gain_param")),
+                "gtm": summarize_parameter(second_output.get("gtm_param")),
+                "ltm": summarize_parameter(second_output.get("ltm_param")),
+                "chroma_lut": summarize_parameter(second_output.get("chroma_lut_param")),
+                "gamma": summarize_parameter(second_output.get("gamma_param")),
             },
             "stage_statistics": stage_statistics,
             "missing_optional_stages": missing_optional_stages,
