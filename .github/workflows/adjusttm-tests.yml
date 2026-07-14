@@ -27,10 +27,16 @@ jobs:
           cache: "pip"
       - name: Install focused dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
-          python -m pip install numpy opencv-python-headless pytest tqdm
+          python -m pip install -q --upgrade pip
+          python -m pip install -q --index-url https://download.pytorch.org/whl/cpu torch
+          python -m pip install -q numpy opencv-python-headless pytest tqdm
       - name: Compile adjustTM
         run: python -m compileall -q adjustTM
       - name: Run adjustTM tests
-        run: pytest adjustTM/tests -q
+        shell: bash
+        run: |
+          set +e
+          pytest adjustTM/tests -q > /tmp/adjusttm-pytest.log 2>&1
+          status=$?
+          tail -n 140 /tmp/adjusttm-pytest.log
+          exit $status
