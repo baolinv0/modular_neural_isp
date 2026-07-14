@@ -1,0 +1,27 @@
+{
+  "protocol_version": "1.0",
+  "seed": 42,
+  "gt_provenance": {
+    "a_000": "real_camera_rgb",
+    "a_m100": "fixed_flux_endpoint",
+    "a_p100": "fixed_flux_endpoint",
+    "intermediate_nonzero": "retinex_interpolation"
+  },
+  "image_mode": "fit_pad",
+  "max_side": 512,
+  "multiple": 16,
+  "dense_alpha_steps": 41,
+  "main_methods": [
+    "frozen_baseline",
+    "exposure_global",
+    "gamma_global",
+    "param_residual",
+    "parallel_adapter",
+    "film",
+    "dual_lora"
+  ],
+  "diagnostic_methods": [
+    "exposure_oracle",
+    "gamma_oracle"
+  ]
+}
