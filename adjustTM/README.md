@@ -20,6 +20,7 @@ For the complete operator-facing training procedure, fairness constraints, four-
 For the fixed test manifest, deployable Exposure/Gamma baselines, diagnostic oracles, four-model comparison, semantic GT grouping, dense control analysis, VLM tasks, blinded human study, scene-level statistics and HTML/CSV/XLSX reports, read:
 
 - [benchmark/README.md](benchmark/README.md)
+- [benchmark/VISUAL_GALLERY.md](benchmark/VISUAL_GALLERY.md) for representative, improvement, failure, local-crop, control-curve and full-scene visual evidence.
 
 ## Data layout
 
