@@ -39,9 +39,23 @@
       "--protocol", "/runs/run_001/protocol.json",
       "--output", "/runs/run_001/statistics/summary.json"
     ],
+    "gallery": [
+      "python", "-m", "adjustTM.benchmark.build_case_gallery",
+      "--manifest", "/runs/run_001/manifest.json",
+      "--output-root", "/runs/run_001/outputs",
+      "--reference-records", "/runs/run_001/metrics/reference_records.jsonl",
+      "--dense-records", "/runs/run_001/outputs/dense_control_records.jsonl",
+      "--control-records", "/runs/run_001/metrics/control_records.jsonl",
+      "--methods", "frozen_baseline", "exposure_global", "gamma_global", "param_residual", "parallel_adapter", "film", "dual_lora",
+      "--focus-method", "film",
+      "--comparison-baseline", "gamma_global",
+      "--asset-mode", "copy",
+      "--output-dir", "/runs/run_001/qualitative"
+    ],
     "report": [
       "python", "-m", "adjustTM.benchmark.report",
       "--summary", "/runs/run_001/statistics/summary.json",
+      "--visual-gallery", "/runs/run_001/qualitative/index.html",
       "--output-dir", "/runs/run_001/report"
     ]
   }
