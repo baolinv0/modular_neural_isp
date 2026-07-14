@@ -15,6 +15,12 @@ For the complete operator-facing training procedure, fairness constraints, four-
 
 - [TRAINING_HANDOFF_CN.md](TRAINING_HANDOFF_CN.md)
 
+## Precision benchmark
+
+For the fixed test manifest, deployable Exposure/Gamma baselines, diagnostic oracles, four-model comparison, semantic GT grouping, dense control analysis, VLM tasks, blinded human study, scene-level statistics and HTML/CSV/XLSX reports, read:
+
+- [benchmark/README.md](benchmark/README.md)
+
 ## Data layout
 
 ```text
