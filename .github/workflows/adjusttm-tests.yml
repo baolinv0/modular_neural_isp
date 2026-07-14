@@ -33,6 +33,7 @@ jobs:
       - name: Compile adjustTM
         run: python -m compileall -q adjustTM
       - name: Run adjustTM tests
+        id: pytest
         shell: bash
         run: |
           set +e
@@ -40,3 +41,10 @@ jobs:
           status=$?
           tail -n 140 /tmp/adjusttm-pytest.log
           exit $status
+      - name: Upload pytest log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: adjusttm-pytest-log
+          path: /tmp/adjusttm-pytest.log
+          if-no-files-found: error
