@@ -31,13 +31,13 @@ jobs:
           python -m pip install -q --index-url https://download.pytorch.org/whl/cpu torch
           python -m pip install -q numpy opencv-python-headless pytest tqdm
       - name: Compile adjustTM
-        run: python -m compileall -q adjustTM
+        run: PYTHONPATH=. python -m compileall -q adjustTM
       - name: Run adjustTM tests
         id: pytest
         shell: bash
         run: |
           set +e
-          pytest adjustTM/tests -q > /tmp/adjusttm-pytest.log 2>&1
+          PYTHONPATH=. python -m pytest adjustTM/tests -q > /tmp/adjusttm-pytest.log 2>&1
           status=$?
           tail -n 140 /tmp/adjusttm-pytest.log
           exit $status
