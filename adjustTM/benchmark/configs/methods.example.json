@@ -1,0 +1,40 @@
+{
+  "frozen_baseline": {
+    "type": "frozen_baseline",
+    "baseline_checkpoint": "/models/luminance_only_baseline.pth"
+  },
+  "exposure_global": {
+    "type": "exposure_global",
+    "baseline_method": "frozen_baseline",
+    "calibration": "/runs/run_001/calibration/simple_baselines.json"
+  },
+  "gamma_global": {
+    "type": "gamma_global",
+    "baseline_method": "frozen_baseline",
+    "calibration": "/runs/run_001/calibration/simple_baselines.json"
+  },
+  "param_residual": {
+    "type": "controlled_isp",
+    "control_method": "param_residual",
+    "baseline_checkpoint": "/models/luminance_only_baseline.pth",
+    "control_checkpoint": "/runs/param_residual/control_best.pth"
+  },
+  "parallel_adapter": {
+    "type": "controlled_isp",
+    "control_method": "parallel_adapter",
+    "baseline_checkpoint": "/models/luminance_only_baseline.pth",
+    "control_checkpoint": "/runs/parallel_adapter/control_best.pth"
+  },
+  "film": {
+    "type": "controlled_isp",
+    "control_method": "film",
+    "baseline_checkpoint": "/models/luminance_only_baseline.pth",
+    "control_checkpoint": "/runs/film/control_best.pth"
+  },
+  "dual_lora": {
+    "type": "controlled_isp",
+    "control_method": "dual_lora",
+    "baseline_checkpoint": "/models/luminance_only_baseline.pth",
+    "control_checkpoint": "/runs/dual_lora/control_best.pth"
+  }
+}
