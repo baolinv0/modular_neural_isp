@@ -26,7 +26,7 @@ def parse_args() -> argparse.Namespace:
 def _input_tensor(path: str | None, image_size: int, device: torch.device) -> torch.Tensor:
     if path is None:
         generator = torch.Generator().manual_seed(123)
-        return torch.rand((1, 3, image_size, image_size), generator=generator, device=device)
+        return torch.rand((1, 3, image_size, image_size), generator=generator).to(device)
     image = read_linear_png16(path).unsqueeze(0).to(device)
     if image.shape[-2:] != (image_size, image_size):
         image = F.interpolate(image, size=(image_size, image_size), mode="bilinear", align_corners=True)
