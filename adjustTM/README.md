@@ -9,6 +9,12 @@
 
 Only GainNet and GlobalToneMappingNet receive trainable control parameters. Original Gain/GTM weights and the entire LTM remain frozen. The LTM is still active and can respond to changed upstream images, but it receives no trainable control parameters. Color LUTs and learned gamma are not used. Output encoding uses the fixed standard sRGB OETF.
 
+## Training handoff
+
+For the complete operator-facing training procedure, fairness constraints, four-GPU commands, resume workflow, evaluation protocol and delivery checklist, read:
+
+- [TRAINING_HANDOFF_CN.md](TRAINING_HANDOFF_CN.md)
+
 ## Data layout
 
 ```text
