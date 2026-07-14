@@ -20,7 +20,7 @@ from .transfer import linear_to_srgb
 
 
 class LuminanceOnlyBaseline(nn.Module):
-    """Gain -> GTM -> frozen LTM -> fixed sRGB OETF."""
+    """Gain -> GTM -> LTM -> fixed standard sRGB OETF."""
 
     def __init__(self, device: torch.device | str = "cpu") -> None:
         super().__init__()
@@ -51,13 +51,13 @@ class ControlledBrightnessISP(nn.Module):
         self,
         control_method: str,
         device: torch.device | str = "cpu",
-        baseline: LuminanceOnlyBaseline | None = None,
+        baseline: nn.Module | None = None,
     ) -> None:
         super().__init__()
         if control_method not in CONTROL_METHODS:
             raise ValueError(f"control_method must be one of {CONTROL_METHODS}")
         self.control_method = control_method
-        self.baseline = baseline or LuminanceOnlyBaseline(device=device)
+        self.baseline = baseline if baseline is not None else LuminanceOnlyBaseline(device=device)
         self.freeze_baseline()
         self.gain_control = ControlledPredictor(
             self.baseline._gain_net,
@@ -71,10 +71,25 @@ class ControlledBrightnessISP(nn.Module):
             control_method=control_method,
             output_kind="gtm",
         )
+        self.assert_baseline_frozen()
+
+    def train(self, mode: bool = True) -> "ControlledBrightnessISP":
+        super().train(mode)
+        # Frozen baseline modules must never change behavior because of train/eval
+        # state. Gradients still propagate through their operations to the
+        # controlled Gain/GTM inputs.
+        self.baseline.eval()
+        return self
 
     def freeze_baseline(self) -> None:
         for parameter in self.baseline.parameters():
             parameter.requires_grad = False
+        self.baseline.eval()
+
+    def assert_baseline_frozen(self) -> None:
+        trainable = [name for name, parameter in self.baseline.named_parameters() if parameter.requires_grad]
+        if trainable:
+            raise RuntimeError(f"Baseline parameters are unexpectedly trainable: {trainable[:10]}")
 
     def control_parameters(self) -> Iterable[nn.Parameter]:
         for name, parameter in self.named_parameters():
@@ -132,28 +147,41 @@ def _unwrap_checkpoint(checkpoint: Any) -> dict[str, torch.Tensor]:
     if not isinstance(checkpoint, dict) or not checkpoint:
         raise ValueError("Checkpoint does not contain a state_dict")
     normalized: dict[str, torch.Tensor] = {}
-    for key, value in checkpoint.items():
+    removable_prefixes = (
+        "module.",
+        "model.",
+        "baseline.",
+        "photofinishing.",
+        "photofinishing_module.",
+        "_photofinishing_module.",
+    )
+    for raw_key, value in checkpoint.items():
         if not torch.is_tensor(value):
             continue
-        while key.startswith("module."):
-            key = key[len("module.") :]
-        if key.startswith("baseline."):
-            key = key[len("baseline.") :]
+        key = raw_key
+        changed = True
+        while changed:
+            changed = False
+            for prefix in removable_prefixes:
+                if key.startswith(prefix):
+                    key = key[len(prefix) :]
+                    changed = True
+                    break
         normalized[key] = value
     return normalized
 
 
 def load_baseline_checkpoint(
-    model: LuminanceOnlyBaseline,
+    model: nn.Module,
     checkpoint_path: str | Path,
     map_location: str | torch.device = "cpu",
 ) -> None:
     state = _unwrap_checkpoint(torch.load(checkpoint_path, map_location=map_location))
-    allowed_extra_prefixes = ("_gamma_net.", "_lut_net.", "_3d_lut.")
-    filtered = {key: value for key, value in state.items() if not key.startswith(allowed_extra_prefixes)}
+    removed_prefixes = ("_gamma_net.", "_lut_net.", "_3d_lut.")
+    filtered = {key: value for key, value in state.items() if not key.startswith(removed_prefixes)}
     result = model.load_state_dict(filtered, strict=False)
-    missing = list(result.missing_keys)
-    unexpected = [key for key in result.unexpected_keys if not key.startswith(allowed_extra_prefixes)]
+    missing = sorted(result.missing_keys)
+    unexpected = sorted(key for key in result.unexpected_keys if not key.startswith(removed_prefixes))
     if missing or unexpected:
         raise RuntimeError(f"Incompatible baseline checkpoint; missing={missing}, unexpected={unexpected}")
 
@@ -172,10 +200,14 @@ def load_control_checkpoint(
     state = checkpoint.get("control_state_dict", checkpoint.get("state_dict"))
     if not isinstance(state, dict):
         raise ValueError("Control checkpoint has no control_state_dict")
+    expected = set(model.control_state_dict())
+    received = set(state)
+    missing = sorted(expected - received)
+    unknown = sorted(received - expected)
+    if missing or unknown:
+        raise RuntimeError(f"Incompatible control checkpoint; missing={missing}, unexpected={unknown}")
     current = model.state_dict()
-    unknown = sorted(set(state) - set(current))
-    if unknown:
-        raise RuntimeError(f"Unknown control keys: {unknown}")
     current.update(state)
     model.load_state_dict(current, strict=True)
+    model.assert_baseline_frozen()
     return checkpoint
