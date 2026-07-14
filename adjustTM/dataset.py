@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import itertools
 import random
+from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import Iterable
 
 import cv2
 import numpy as np
@@ -16,6 +16,18 @@ from .constants import LEVELS
 
 def build_level_pairs() -> list[tuple[int, int]]:
     return list(itertools.combinations(range(len(LEVELS)), 2))
+
+
+def discover_scene_names(input_dir: str | Path) -> list[str]:
+    input_dir = Path(input_dir)
+    if not input_dir.is_dir():
+        raise NotADirectoryError(input_dir)
+    names = sorted(path.name for path in input_dir.glob("*.png") if path.is_file())
+    if not names:
+        raise ValueError(f"No PNG files found in {input_dir}")
+    if len(names) != len(set(names)):
+        raise ValueError("Duplicate input filenames detected")
+    return names
 
 
 def _read_png(path: Path) -> np.ndarray:
@@ -60,8 +72,20 @@ def _resize(image: torch.Tensor, image_size: int | None) -> torch.Tensor:
     ).squeeze(0)
 
 
+def _select_scenes(all_names: Sequence[str], requested: Sequence[str] | None) -> list[str]:
+    if requested is None:
+        return list(all_names)
+    selected = list(requested)
+    if not selected or len(selected) != len(set(selected)):
+        raise ValueError("scene_names must be non-empty and unique")
+    missing = sorted(set(selected) - set(all_names))
+    if missing:
+        raise FileNotFoundError(f"Requested input scenes do not exist: {missing[:10]}")
+    return sorted(selected)
+
+
 class MultiLevelPairDataset(Dataset):
-    """Expands each scene across all 36 ordered brightness-level pairs."""
+    """Expands each selected scene across all 36 low/high brightness pairs."""
 
     def __init__(
         self,
@@ -70,6 +94,7 @@ class MultiLevelPairDataset(Dataset):
         image_size: int | None = 512,
         geometric_aug: bool = False,
         seed: int = 42,
+        scene_names: Sequence[str] | None = None,
     ) -> None:
         self.input_dir = Path(input_dir)
         self.gt_root = Path(gt_root)
@@ -79,33 +104,34 @@ class MultiLevelPairDataset(Dataset):
         self.epoch = 0
         self.level_pairs = build_level_pairs()
 
-        if not self.input_dir.is_dir():
-            raise NotADirectoryError(self.input_dir)
-        input_files = sorted(path for path in self.input_dir.glob("*.png") if path.is_file())
-        if not input_files:
-            raise ValueError(f"No PNG files found in {self.input_dir}")
-        input_names = [path.name for path in input_files]
-        if len(input_names) != len(set(input_names)):
-            raise ValueError("Duplicate input filenames detected")
-
-        self.input_files = {path.name: path for path in input_files}
+        all_input_names = discover_scene_names(self.input_dir)
+        selected_names = _select_scenes(all_input_names, scene_names)
+        selected_set = set(selected_names)
+        self.input_files = {name: self.input_dir / name for name in selected_names}
         self.gt_files: dict[str, dict[str, Path]] = {}
-        input_name_set = set(input_names)
+        full_dataset = scene_names is None
+        full_input_set = set(all_input_names)
+
         for level_name, _ in LEVELS:
             level_dir = self.gt_root / level_name
             if not level_dir.is_dir():
                 raise NotADirectoryError(level_dir)
             files = sorted(path for path in level_dir.glob("*.png") if path.is_file())
             level_names = [path.name for path in files]
-            if set(level_names) != input_name_set:
-                missing = sorted(input_name_set - set(level_names))
-                extra = sorted(set(level_names) - input_name_set)
-                if missing:
-                    raise FileNotFoundError(f"Missing {level_name} GT files: {missing[:10]}")
-                raise ValueError(f"Unexpected {level_name} GT files: {extra[:10]}")
-            self.gt_files[level_name] = {path.name: path for path in files}
+            if len(level_names) != len(set(level_names)):
+                raise ValueError(f"Duplicate {level_name} GT filenames detected")
+            level_set = set(level_names)
+            missing = sorted(selected_set - level_set)
+            if missing:
+                raise FileNotFoundError(f"Missing {level_name} GT files: {missing[:10]}")
+            if full_dataset:
+                extra = sorted(level_set - full_input_set)
+                if extra:
+                    raise ValueError(f"Unexpected {level_name} GT files: {extra[:10]}")
+            file_map = {path.name: path for path in files}
+            self.gt_files[level_name] = {name: file_map[name] for name in selected_names}
 
-        self.scene_names = input_names
+        self.scene_names = selected_names
         self.samples = [
             (scene_name, low_idx, high_idx)
             for scene_name in self.scene_names
@@ -161,19 +187,21 @@ class MultiLevelPairDataset(Dataset):
 
 
 class MultiLevelDataset(Dataset):
-    """Each scene-level combination appears exactly once per epoch."""
+    """Each selected scene-level combination appears exactly once."""
 
     def __init__(
         self,
         input_dir: str | Path,
         gt_root: str | Path,
         image_size: int | None = 512,
+        scene_names: Sequence[str] | None = None,
     ) -> None:
         pair_dataset = MultiLevelPairDataset(
             input_dir=input_dir,
             gt_root=gt_root,
             image_size=image_size,
             geometric_aug=False,
+            scene_names=scene_names,
         )
         self.input_files = pair_dataset.input_files
         self.gt_files = pair_dataset.gt_files
