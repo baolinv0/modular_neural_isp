@@ -175,3 +175,24 @@ The forward result contains:
 - exposure clipping diagnostics.
 
 Use `override_ev`, `override_illuminant`, and `override_ccm` to isolate modules during debugging.
+
+## Cross-camera Samsung-style adaptation
+
+The optional `cross_camera_tm` package adapts already black-level-corrected and white-balanced iPhone linear RGB to the input domain expected by a frozen Samsung-trained photofinishing model. It does not replace the capture pipeline, estimate AWB from scratch, or retrain the Samsung backbone.
+
+Run the deterministic mechanical canary:
+
+```bash
+PYTHONPATH=/tmp/cross-camera-torch:. \
+  python main/run_cross_camera_adaptation.py synthetic-canary \
+  --config configs/cross_camera_tm_v2.yaml \
+  --output-dir /tmp/cross-camera-canary
+```
+
+Run the unified verification, including all pre-existing capture tests and the included Samsung checkpoint interface canary:
+
+```bash
+scripts/run_cross_camera_domain_adaptation_verification.sh
+```
+
+The default configuration is intentionally synthetic and sets `pixel_route_enabled: false`. Synthetic output proves deterministic mechanics only; it does not establish improvement on real iPhone data. `real-run` fails closed unless local calibration, trained-adapter, input, metadata, and non-synthetic profile artifacts are supplied, and no remote or closed-model fallback is provided.
