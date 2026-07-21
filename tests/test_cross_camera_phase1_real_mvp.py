@@ -15,7 +15,7 @@ from cross_camera_tm.phase1_data import (
     Phase1SourceExample,
     build_group_folds,
 )
-from cross_camera_tm.phase1_training import (
+from cross_camera_tm.phase1_protocol import (
     Phase1TrainingConfig,
     load_phase1_artifact,
     run_phase1_inference,
