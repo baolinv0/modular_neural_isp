@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -21,7 +21,6 @@ from .phase1_data import (
 from .phase1_training import (
     FoldReport,
     Phase1Artifact,
-    Phase1TrainingConfig,
     Phase1TrainingReport,
     Phase1TrainingResult,
     calibration_support_distance,
@@ -29,6 +28,27 @@ from .phase1_training import (
     load_phase1_artifact,
     run_phase1_inference,
 )
+
+
+@dataclass(frozen=True)
+class Phase1TrainingConfig:
+    solver_steps: int = 24
+    solver_learning_rate: float = 0.03
+    hidden_dim: int = 4
+    bootstrap_samples: int = 1000
+    seed: int = 17
+    ridge: float = 1e-3
+    data_mode: str = "real"
+
+    def __post_init__(self) -> None:
+        if self.solver_steps < 1 or self.bootstrap_samples < 50:
+            raise ValueError("solver and bootstrap counts are too small")
+        if self.solver_learning_rate <= 0 or self.ridge <= 0:
+            raise ValueError("solver learning rate and ridge must be positive")
+        if self.hidden_dim < 1:
+            raise ValueError("hidden_dim must be positive")
+        if self.data_mode not in {"real", "synthetic"}:
+            raise ValueError("data_mode must be real or synthetic")
 
 
 def _state_sha256(module: torch.nn.Module) -> str:
@@ -111,13 +131,7 @@ def _fit_ridge_predictor(
     targets,
     config: Phase1TrainingConfig,
 ) -> tuple[TargetCameraAdapter, torch.Tensor, torch.Tensor]:
-    """Fit the tiny z->theta map by weighted ridge on a fixed feature map.
-
-    The random four-dimensional tanh feature map remains fixed. Only the output
-    head is solved, with its bias unregularized. This makes a global device
-    correction the lowest-complexity solution and uses feature dependence only
-    when it provides repeatable training evidence.
-    """
+    """Fit z->theta by weighted ridge on a fixed four-dimensional feature map."""
 
     if not items:
         raise ValueError("no qualified Phase 1 training pairs")
@@ -149,7 +163,7 @@ def _fit_ridge_predictor(
         regularizer = torch.eye(gram.shape[0], device=gram.device, dtype=gram.dtype)
         regularizer[-1, -1] = 0.0
         coefficients = torch.linalg.solve(
-            gram + max(config.ridge, 1e-6) * regularizer,
+            gram + config.ridge * regularizer,
             cross,
         )
         adapter.head.weight.copy_(coefficients[:-1].transpose(0, 1))
