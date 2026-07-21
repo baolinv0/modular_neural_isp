@@ -68,7 +68,7 @@ def make_data():
 
     alignment = AlignmentEvidence.from_mapping(
         {
-            "quality": "scene_only",
+            "quality": "roi",
             "overlap": 0.85,
             "forward_backward_consistency": 0.9,
             "valid_roi_fraction": 0.8,
@@ -82,6 +82,8 @@ def make_data():
         split = "development" if index < 40 else "locked"
         scene_group = f"dev-scene-{index // 4}" if split == "development" else f"locked-scene-{(index - 40) // 5}"
         pair_id = f"pair-{index}"
+        roi_mask = torch.zeros(1, 1, 8, 8, dtype=torch.bool)
+        roi_mask[:, :, 1:7, 1:7] = True
         pairs.append(
             Phase1CalibrationExample(
                 pair_id=pair_id,
@@ -93,6 +95,7 @@ def make_data():
                 iphone_metadata=metadata(f"iphone-{index}", "iPhone"),
                 samsung_metadata=metadata(f"samsung-{index}", "Samsung S24"),
                 alignment=alignment,
+                roi_mask=roi_mask,
             )
         )
     return sources, pairs
@@ -197,6 +200,12 @@ class Phase1RealMVPTests(unittest.TestCase):
         self.assertGreaterEqual(result.report.positive_folds, 4)
         self.assertGreater(result.report.locked_median_improvement, 0.0)
         self.assertLess(adapted_error, baseline_error)
+        metric_summary = loaded.validation_report["locked_metric_summary"]
+        self.assertGreater(metric_summary["global_tone_median_improvement"], 0.0)
+        self.assertGreaterEqual(metric_summary["highlight_median_improvement"], -1e-6)
+        self.assertEqual(metric_summary["roi_pairs"], 10)
+        self.assertGreater(metric_summary["roi_median_improvement"], 0.0)
+        self.assertTrue(loaded.validation_report["samsung_backbone_unchanged"])
         self.assertEqual(manifest["phase1_status"], "pass")
         self.assertEqual(manifest["samsung_model_sha256"], "a" * 64)
         self.assertFalse(manifest["phase2_executed"])
