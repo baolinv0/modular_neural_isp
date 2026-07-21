@@ -152,7 +152,7 @@ class Phase1RealMVPTests(unittest.TestCase):
         config = Phase1TrainingConfig(
             solver_steps=6,
             solver_learning_rate=0.08,
-            predictor_steps=60,
+            predictor_steps=240,
             predictor_learning_rate=0.04,
             bootstrap_samples=200,
             seed=9,
