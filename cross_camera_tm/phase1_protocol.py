@@ -126,12 +126,27 @@ def _raw_parameter_targets(
     return torch.cat((raw_gain, raw_matrix, raw_curve), dim=1)
 
 
+def _canonicalize_component_signs(components: torch.Tensor) -> torch.Tensor:
+    result = components.clone()
+    for index in range(result.shape[0]):
+        pivot = int(result[index].abs().argmax().item())
+        if result[index, pivot].item() < 0.0:
+            result[index].mul_(-1.0)
+    return result
+
+
 def _fit_ridge_predictor(
     items,
     targets,
     config: Phase1TrainingConfig,
 ) -> tuple[TargetCameraAdapter, torch.Tensor, torch.Tensor]:
-    """Fit z->theta by weighted ridge on a fixed four-dimensional feature map."""
+    """Fit z->theta with fold-local PCA features and teacher-weighted ridge.
+
+    The feature normalization, PCA basis and regression coefficients are all
+    estimated from the current fold's training scene groups only. The bias is
+    unregularized so a global device correction is the minimum-complexity
+    solution; feature-conditioned variation must overcome ridge regularization.
+    """
 
     if not items:
         raise ValueError("no qualified Phase 1 training pairs")
@@ -148,7 +163,16 @@ def _fit_ridge_predictor(
         len(PHASE1_FEATURE_NAMES),
         config.hidden_dim,
     ).to(normalized)
+
     with torch.no_grad():
+        linear = adapter.predictor[0]
+        linear.weight.zero_()
+        linear.bias.zero_()
+        _, _, right_vectors = torch.linalg.svd(normalized, full_matrices=False)
+        component_count = min(config.hidden_dim, right_vectors.shape[0])
+        components = _canonicalize_component_signs(right_vectors[:component_count])
+        linear.weight[:component_count].copy_(components)
+
         hidden = adapter.predictor(normalized)
         design = torch.cat(
             (hidden, torch.ones(hidden.shape[0], 1, device=hidden.device, dtype=hidden.dtype)),
@@ -162,8 +186,9 @@ def _fit_ridge_predictor(
         cross = weighted_design.transpose(0, 1) @ weighted_targets
         regularizer = torch.eye(gram.shape[0], device=gram.device, dtype=gram.dtype)
         regularizer[-1, -1] = 0.0
+        ridge_strength = max(config.ridge * len(items), 0.1)
         coefficients = torch.linalg.solve(
-            gram + config.ridge * regularizer,
+            gram + ridge_strength * regularizer,
             cross,
         )
         adapter.head.weight.copy_(coefficients[:-1].transpose(0, 1))
@@ -222,7 +247,7 @@ def train_phase1(
     config: Phase1TrainingConfig | None = None,
     canonicalizer: DeviceCanonicalizer | None = None,
 ) -> Phase1TrainingResult:
-    """Train Phase 1 with fold-local pair targets and normalization."""
+    """Train Phase 1 with fold-local pair targets, normalization and PCA."""
 
     config = config or Phase1TrainingConfig()
     canonicalizer = canonicalizer or DeviceCanonicalizer()
@@ -388,7 +413,7 @@ def train_phase1(
     validation_payload["locked_metric_summary"] = locked_metrics
     validation_payload["samsung_backbone_unchanged"] = backbone_unchanged
     validation_payload["samsung_backbone_state_sha256"] = backbone_before
-    validation_payload["parameter_predictor"] = "weighted_ridge_on_fixed_tanh_features"
+    validation_payload["parameter_predictor"] = "teacher_weighted_ridge_on_fold_pca_features"
     payload = {
         "schema_version": 1,
         "feature_names": list(PHASE1_FEATURE_NAMES),
