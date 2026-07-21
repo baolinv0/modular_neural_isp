@@ -20,7 +20,7 @@ from .phase1_data import (
     load_source_manifest,
     manifest_sha256,
 )
-from .phase1_training import (
+from .phase1_protocol import (
     Phase1TrainingConfig,
     evaluate_phase1_artifact,
     load_phase1_artifact,
