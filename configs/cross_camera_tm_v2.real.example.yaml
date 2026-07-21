@@ -1,0 +1,20 @@
+schema_version: 2
+mode: real
+seed: 17
+phase2:
+  enabled: false
+  minimum_eligible_samples: 50
+routing:
+  pixel_route_enabled: false
+models:
+  samsung_checkpoint: photofinishing/models/photofinishing_s24-style-0.pth
+  qwen3_vl_checkpoint: null
+  qwen_image_edit_checkpoint: null
+  internvl_checkpoint: null
+  ovis_checkpoint: null
+  require_real_model: true
+canonicalization:
+  exposure_scale_min: 0.5
+  exposure_scale_max: 2.0
+  reliable_dark_threshold: 0.01
+  highlight_threshold: 0.98
