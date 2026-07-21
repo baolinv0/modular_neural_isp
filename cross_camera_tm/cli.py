@@ -97,7 +97,6 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--calibration-manifest", required=True, type=Path)
     train.add_argument("--output-dir", required=True, type=Path)
     train.add_argument("--solver-steps", type=int, default=24)
-    train.add_argument("--predictor-steps", type=int, default=160)
     train.add_argument("--data-mode", choices=("real", "synthetic"), default="real")
 
     evaluate = subparsers.add_parser("evaluate-phase1")
@@ -153,7 +152,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                 artifact_path=args.output_dir / "phase1_adapter.pt",
                 config=Phase1TrainingConfig(
                     solver_steps=args.solver_steps,
-                    predictor_steps=args.predictor_steps,
                     seed=config.seed,
                     data_mode=args.data_mode,
                 ),
