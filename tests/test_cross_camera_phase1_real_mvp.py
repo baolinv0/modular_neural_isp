@@ -176,6 +176,7 @@ class Phase1RealMVPTests(unittest.TestCase):
                     artifact_path=artifact_path,
                     config=config,
                 )
+            self.assertTrue(result.report.passed, result.report.reasons)
             loaded = load_phase1_artifact(artifact_path, expected_model_sha256="a" * 64)
             output, manifest = run_phase1_inference(
                 image=pairs[-1].iphone_image,
@@ -196,7 +197,6 @@ class Phase1RealMVPTests(unittest.TestCase):
         teacher = frozen_tm(pairs[-1].samsung_image)
         baseline_error = (baseline - teacher).abs().mean().item()
         adapted_error = (output - teacher).abs().mean().item()
-        self.assertTrue(result.report.passed, result.report.reasons)
         self.assertGreaterEqual(result.report.positive_folds, 4)
         self.assertGreater(result.report.locked_median_improvement, 0.0)
         self.assertLess(adapted_error, baseline_error)
