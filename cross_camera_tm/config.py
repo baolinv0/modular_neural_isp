@@ -20,6 +20,12 @@ def _strict_fields(payload: Mapping[str, Any], expected: set[str], section: str)
         raise ValueError(f"missing {section} fields: " + ",".join(missing))
 
 
+def _require_bool(value: Any, name: str) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError(f"{name} must be a boolean")
+    return value
+
+
 @dataclass(frozen=True)
 class Phase2Config:
     enabled: bool
@@ -99,13 +105,20 @@ class PipelineConfig:
         minimum = int(phase_payload["minimum_eligible_samples"])
         if minimum < 50:
             raise ValueError("Phase 2 requires at least 50 eligible target samples")
+        phase2_enabled = _require_bool(phase_payload["enabled"], "phase2.enabled")
+        pixel_route_enabled = _require_bool(
+            routing_payload["pixel_route_enabled"], "routing.pixel_route_enabled"
+        )
+        require_real_model = _require_bool(
+            model_payload["require_real_model"], "models.require_real_model"
+        )
         models = ModelConfig(
             samsung_checkpoint=None if model_payload["samsung_checkpoint"] is None else str(model_payload["samsung_checkpoint"]),
             qwen3_vl_checkpoint=None if model_payload["qwen3_vl_checkpoint"] is None else str(model_payload["qwen3_vl_checkpoint"]),
             qwen_image_edit_checkpoint=None if model_payload["qwen_image_edit_checkpoint"] is None else str(model_payload["qwen_image_edit_checkpoint"]),
             internvl_checkpoint=None if model_payload["internvl_checkpoint"] is None else str(model_payload["internvl_checkpoint"]),
             ovis_checkpoint=None if model_payload["ovis_checkpoint"] is None else str(model_payload["ovis_checkpoint"]),
-            require_real_model=bool(model_payload["require_real_model"]),
+            require_real_model=require_real_model,
         )
         if mode == "real" and (not models.require_real_model or not models.samsung_checkpoint):
             raise ValueError("real mode requires an explicit Samsung checkpoint and require_real_model=true")
@@ -115,8 +128,8 @@ class PipelineConfig:
             schema_version=2,
             mode=mode,
             seed=int(payload["seed"]),
-            phase2=Phase2Config(bool(phase_payload["enabled"]), minimum),
-            routing=RoutingConfig(bool(routing_payload["pixel_route_enabled"])),
+            phase2=Phase2Config(phase2_enabled, minimum),
+            routing=RoutingConfig(pixel_route_enabled),
             models=models,
             canonicalization=CanonicalizationConfig(**{key: float(value) for key, value in canonical_payload.items()}),
         )
