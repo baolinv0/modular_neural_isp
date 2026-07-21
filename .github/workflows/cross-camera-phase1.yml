@@ -31,7 +31,17 @@ jobs:
       - name: Compile
         run: python -m compileall -q cross_camera_tm main tests scripts
       - name: Cross-camera tests
-        run: python -m unittest discover -s tests -p 'test_cross_camera_*.py' -v
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -p 'test_cross_camera_*.py' -v 2>&1 | tee cross-camera-tests.log
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-camera-test-log
+          path: cross-camera-tests.log
+          if-no-files-found: error
       - name: Configuration validation
         run: |
           python main/run_cross_camera_adaptation.py validate-config --config configs/cross_camera_tm_v2.yaml
