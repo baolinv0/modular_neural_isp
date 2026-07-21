@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import hashlib
 from dataclasses import asdict
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
 
 import torch
 
 from . import phase1_training as core
+from .adapters import LUMA_WEIGHTS
 from .canonicalization import DeviceCanonicalizer
 from .phase1 import FrozenSamsungTM, TeacherQualificationStatus, TeacherQualifier
 from .phase1_data import (
@@ -27,6 +29,105 @@ from .phase1_training import (
     load_phase1_artifact,
     run_phase1_inference,
 )
+
+
+def _state_sha256(module: torch.nn.Module) -> str:
+    digest = hashlib.sha256()
+    for name, tensor in sorted(module.state_dict().items()):
+        value = tensor.detach().cpu().contiguous()
+        digest.update(name.encode("utf-8"))
+        digest.update(str(tuple(value.shape)).encode("ascii"))
+        digest.update(str(value.dtype).encode("ascii"))
+        digest.update(value.numpy().tobytes(order="C"))
+    return digest.hexdigest()
+
+
+def _luma(image: torch.Tensor) -> torch.Tensor:
+    weights = image.new_tensor(LUMA_WEIGHTS).view(1, 3, 1, 1)
+    return (image * weights).sum(dim=1, keepdim=True).clamp(0.0, 1.0)
+
+
+def _metric_errors(
+    output: torch.Tensor,
+    teacher: torch.Tensor,
+    roi_mask: torch.Tensor | None,
+) -> dict[str, float | None]:
+    output_luma = _luma(output)
+    teacher_luma = _luma(teacher)
+    quantiles = output.new_tensor((0.1, 0.25, 0.5, 0.75, 0.9))
+    output_q = torch.quantile(torch.log(output_luma.clamp_min(1e-6)).flatten(), quantiles)
+    teacher_q = torch.quantile(torch.log(teacher_luma.clamp_min(1e-6)).flatten(), quantiles)
+    global_error = float((output_q - teacher_q).abs().mean().item())
+    output_headroom = 1.0 - torch.quantile(output_luma.flatten(), 0.99)
+    teacher_headroom = 1.0 - torch.quantile(teacher_luma.flatten(), 0.99)
+    output_clip = (output_luma >= 0.995).float().mean()
+    teacher_clip = (teacher_luma >= 0.995).float().mean()
+    highlight_error = float(
+        ((output_headroom - teacher_headroom).abs() + (output_clip - teacher_clip).abs()).item()
+    )
+    roi_error: float | None = None
+    if roi_mask is not None:
+        mask = roi_mask.to(dtype=output.dtype)
+        if mask.sum().item() > 0:
+            output_values = output_luma[mask.bool()]
+            teacher_values = teacher_luma[mask.bool()]
+            roi_q = output.new_tensor((0.25, 0.5, 0.75))
+            roi_error = float(
+                (
+                    torch.quantile(torch.log(output_values.clamp_min(1e-6)), roi_q)
+                    - torch.quantile(torch.log(teacher_values.clamp_min(1e-6)), roi_q)
+                )
+                .abs()
+                .mean()
+                .item()
+            )
+    return {"global_tone": global_error, "highlight": highlight_error, "roi": roi_error}
+
+
+def _locked_metric_summary(
+    items,
+    adapter,
+    mean: torch.Tensor,
+    std: torch.Tensor,
+    frozen_tm: FrozenSamsungTM,
+) -> dict[str, Any]:
+    improvements: dict[str, list[float]] = {
+        "global_tone": [],
+        "highlight": [],
+        "roi": [],
+    }
+    with torch.no_grad():
+        for item in items:
+            if item.teacher_status is TeacherQualificationStatus.REJECTED:
+                continue
+            features = (item.features - mean) / std
+            adapted_input = adapter(item.iphone, features, confidence=item.confidence)
+            baseline = frozen_tm(item.iphone)
+            student = frozen_tm(adapted_input.image)
+            baseline_errors = _metric_errors(
+                baseline,
+                item.teacher,
+                item.example.roi_mask,
+            )
+            adapted_errors = _metric_errors(
+                student,
+                item.teacher,
+                item.example.roi_mask,
+            )
+            for name in improvements:
+                before = baseline_errors[name]
+                after = adapted_errors[name]
+                if before is not None and after is not None:
+                    improvements[name].append(float(before - after))
+    summary: dict[str, Any] = {}
+    for name, values in improvements.items():
+        summary[f"{name}_pairs"] = len(values)
+        summary[f"{name}_median_improvement"] = (
+            float(torch.median(torch.tensor(values)).item())
+            if values
+            else float("-inf")
+        )
+    return summary
 
 
 def train_phase1(
@@ -62,6 +163,7 @@ def train_phase1(
     if development_groups & locked_groups:
         raise ValueError("locked scene groups must not appear in development")
 
+    backbone_before = _state_sha256(frozen_tm.module)
     torch.manual_seed(config.seed)
     profile = core._build_teacher_profile(source_examples, canonicalizer, frozen_tm)
     prepared = core._prepare_pairs(
@@ -129,7 +231,6 @@ def train_phase1(
         out_of_fold.get(item.example.pair_id, 0.0)
         for item in prepared_development
     ]
-
     final_targets = core._fit_pair_targets(
         prepared_development,
         solver,
@@ -147,6 +248,13 @@ def train_phase1(
         config,
     )
     locked_improvements, locked_margins = core._evaluate_items(
+        prepared_locked,
+        final_adapter,
+        feature_mean,
+        feature_std,
+        frozen_tm,
+    )
+    locked_metrics = _locked_metric_summary(
         prepared_locked,
         final_adapter,
         feature_mean,
@@ -171,6 +279,7 @@ def train_phase1(
         config.seed,
     )
     locked_median = float(torch.median(torch.tensor(locked_improvements)).item())
+    backbone_unchanged = backbone_before == _state_sha256(frozen_tm.module)
 
     reasons: list[str] = []
     if positive_folds < 4:
@@ -181,6 +290,14 @@ def train_phase1(
         reasons.append("development_bootstrap")
     if locked_median <= 0.0:
         reasons.append("locked_direction")
+    if locked_metrics["global_tone_median_improvement"] <= 0.0:
+        reasons.append("locked_global_tone")
+    if locked_metrics["highlight_median_improvement"] < -1e-6:
+        reasons.append("locked_highlight_regression")
+    if locked_metrics["roi_pairs"] < 2:
+        reasons.append("locked_roi_coverage")
+    elif locked_metrics["roi_median_improvement"] <= 0.0:
+        reasons.append("locked_roi_direction")
     if any(margin <= 0.0 for margin in locked_margins):
         reasons.append("adapter_boundary")
     qualified_locked = sum(
@@ -189,6 +306,8 @@ def train_phase1(
     )
     if len(qualified_development) < 30 or qualified_locked < 8:
         reasons.append("teacher_qualification_coverage")
+    if not backbone_unchanged:
+        reasons.append("samsung_backbone_changed")
 
     report = Phase1TrainingReport(
         passed=not reasons,
@@ -204,6 +323,10 @@ def train_phase1(
 
     artifact_path = Path(artifact_path)
     artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    validation_payload = core._report_payload(report)
+    validation_payload["locked_metric_summary"] = locked_metrics
+    validation_payload["samsung_backbone_unchanged"] = backbone_unchanged
+    validation_payload["samsung_backbone_state_sha256"] = backbone_before
     payload = {
         "schema_version": 1,
         "feature_names": list(PHASE1_FEATURE_NAMES),
@@ -224,7 +347,7 @@ def train_phase1(
         "calibration_manifest_sha256": calibration_manifest_sha256,
         "phase1_passed": report.passed,
         "training_config": asdict(config),
-        "validation_report": core._report_payload(report),
+        "validation_report": validation_payload,
         "teacher_profile": core._profile_payload(profile),
         "data_mode": config.data_mode,
     }
