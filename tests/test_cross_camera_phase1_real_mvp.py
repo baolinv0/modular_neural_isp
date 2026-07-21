@@ -1,10 +1,12 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import torch
 from torch import nn
 
+import cross_camera_tm.phase1_training as phase1_training
 from cross_camera_tm.contracts import AlignmentQuality, LinearMetadata
 from cross_camera_tm.phase1 import FrozenSamsungTM
 from cross_camera_tm.phase1_data import (
@@ -153,18 +155,24 @@ class Phase1RealMVPTests(unittest.TestCase):
             seed=9,
             data_mode="synthetic",
         )
+        folds = build_group_folds(pairs, folds=5)
         with tempfile.TemporaryDirectory() as directory:
             artifact_path = Path(directory) / "phase1_adapter.pt"
-            result = train_phase1(
-                source_examples=sources,
-                calibration_examples=pairs,
-                frozen_tm=frozen_tm,
-                samsung_model_sha256="a" * 64,
-                source_manifest_sha256="b" * 64,
-                calibration_manifest_sha256="c" * 64,
-                artifact_path=artifact_path,
-                config=config,
-            )
+            with patch.object(
+                phase1_training,
+                "_fit_pair_targets",
+                wraps=phase1_training._fit_pair_targets,
+            ) as fit_targets:
+                result = train_phase1(
+                    source_examples=sources,
+                    calibration_examples=pairs,
+                    frozen_tm=frozen_tm,
+                    samsung_model_sha256="a" * 64,
+                    source_manifest_sha256="b" * 64,
+                    calibration_manifest_sha256="c" * 64,
+                    artifact_path=artifact_path,
+                    config=config,
+                )
             loaded = load_phase1_artifact(artifact_path, expected_model_sha256="a" * 64)
             output, manifest = run_phase1_inference(
                 image=pairs[-1].iphone_image,
@@ -172,6 +180,14 @@ class Phase1RealMVPTests(unittest.TestCase):
                 frozen_tm=frozen_tm,
                 artifact=loaded,
             )
+
+        self.assertEqual(fit_targets.call_count, 6)
+        for call, fold in zip(fit_targets.call_args_list[:5], folds):
+            solved_groups = {item.example.scene_group for item in call.args[0]}
+            self.assertTrue(solved_groups.issubset(set(fold.train_groups)))
+            self.assertTrue(solved_groups.isdisjoint(fold.validation_groups))
+        final_groups = {item.example.scene_group for item in fit_targets.call_args_list[-1].args[0]}
+        self.assertEqual(final_groups, {pair.scene_group for pair in pairs if pair.split == "development"})
 
         baseline = frozen_tm(pairs[-1].iphone_image)
         teacher = frozen_tm(pairs[-1].samsung_image)
