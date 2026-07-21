@@ -206,7 +206,7 @@ class Phase1RealMVPTests(unittest.TestCase):
         self.assertTrue(loaded.validation_report["samsung_backbone_unchanged"])
         self.assertEqual(
             loaded.validation_report["parameter_predictor"],
-            "weighted_ridge_on_fixed_tanh_features",
+            "teacher_weighted_ridge_on_fold_pca_features",
         )
         self.assertEqual(manifest["phase1_status"], "pass")
         self.assertEqual(manifest["samsung_model_sha256"], "a" * 64)
