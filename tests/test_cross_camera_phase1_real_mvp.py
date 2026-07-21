@@ -152,8 +152,6 @@ class Phase1RealMVPTests(unittest.TestCase):
         config = Phase1TrainingConfig(
             solver_steps=6,
             solver_learning_rate=0.08,
-            predictor_steps=240,
-            predictor_learning_rate=0.04,
             bootstrap_samples=200,
             seed=9,
             data_mode="synthetic",
@@ -206,6 +204,10 @@ class Phase1RealMVPTests(unittest.TestCase):
         self.assertEqual(metric_summary["roi_pairs"], 10)
         self.assertGreater(metric_summary["roi_median_improvement"], 0.0)
         self.assertTrue(loaded.validation_report["samsung_backbone_unchanged"])
+        self.assertEqual(
+            loaded.validation_report["parameter_predictor"],
+            "weighted_ridge_on_fixed_tanh_features",
+        )
         self.assertEqual(manifest["phase1_status"], "pass")
         self.assertEqual(manifest["samsung_model_sha256"], "a" * 64)
         self.assertFalse(manifest["phase2_executed"])
