@@ -8,7 +8,7 @@ from typing import Any, Sequence
 import torch
 
 from . import phase1_training as core
-from .adapters import LUMA_WEIGHTS
+from .adapters import LUMA_WEIGHTS, PairTransformParameters, TargetCameraAdapter
 from .canonicalization import DeviceCanonicalizer
 from .phase1 import FrozenSamsungTM, TeacherQualificationStatus, TeacherQualifier
 from .phase1_data import (
@@ -84,6 +84,80 @@ def _metric_errors(
     return {"global_tone": global_error, "highlight": highlight_error, "roi": roi_error}
 
 
+def _raw_parameter_targets(
+    adapter: TargetCameraAdapter,
+    targets: PairTransformParameters,
+    confidence: torch.Tensor,
+) -> torch.Tensor:
+    gate = confidence.reshape(-1, 1).clamp(0.2, 1.0)
+    gain_ratio = torch.log(targets.gains.clamp_min(1e-6)) / (adapter.max_log_gain * gate)
+    raw_gain = torch.atanh(gain_ratio.clamp(-0.999, 0.999))
+
+    identity = torch.eye(3, device=targets.matrix.device, dtype=targets.matrix.dtype).unsqueeze(0)
+    matrix_ratio = (targets.matrix - identity).reshape(-1, 9) / (
+        adapter.max_matrix_delta * gate
+    )
+    raw_matrix = torch.atanh(matrix_ratio.clamp(-0.999, 0.999))
+
+    increments = torch.diff(targets.curve_y, dim=1).clamp_min(1e-5)
+    increments = increments / increments.sum(dim=1, keepdim=True)
+    raw_curve_gated = torch.log(torch.expm1(increments).clamp_min(1e-8))
+    raw_curve = raw_curve_gated / gate
+    return torch.cat((raw_gain, raw_matrix, raw_curve), dim=1)
+
+
+def _fit_ridge_predictor(
+    items,
+    targets,
+    config: Phase1TrainingConfig,
+) -> tuple[TargetCameraAdapter, torch.Tensor, torch.Tensor]:
+    """Fit the tiny z->theta map by weighted ridge on a fixed feature map.
+
+    The random four-dimensional tanh feature map remains fixed. Only the output
+    head is solved, with its bias unregularized. This makes a global device
+    correction the lowest-complexity solution and uses feature dependence only
+    when it provides repeatable training evidence.
+    """
+
+    if not items:
+        raise ValueError("no qualified Phase 1 training pairs")
+    features, mean, std = core._normalization(items)
+    normalized = (features - mean) / std
+    confidence = torch.cat([item.confidence for item in items], dim=0)
+    teacher_weights = torch.tensor(
+        [item.teacher_weight for item in items],
+        dtype=normalized.dtype,
+        device=normalized.device,
+    ).clamp_min(1e-3)
+    parameter_targets = core._stack_targets(items, targets)
+    adapter = TargetCameraAdapter(
+        len(PHASE1_FEATURE_NAMES),
+        config.hidden_dim,
+    ).to(normalized)
+    with torch.no_grad():
+        hidden = adapter.predictor(normalized)
+        design = torch.cat(
+            (hidden, torch.ones(hidden.shape[0], 1, device=hidden.device, dtype=hidden.dtype)),
+            dim=1,
+        )
+        raw_targets = _raw_parameter_targets(adapter, parameter_targets, confidence)
+        root_weight = torch.sqrt(teacher_weights).unsqueeze(1)
+        weighted_design = design * root_weight
+        weighted_targets = raw_targets * root_weight
+        gram = weighted_design.transpose(0, 1) @ weighted_design
+        cross = weighted_design.transpose(0, 1) @ weighted_targets
+        regularizer = torch.eye(gram.shape[0], device=gram.device, dtype=gram.dtype)
+        regularizer[-1, -1] = 0.0
+        coefficients = torch.linalg.solve(
+            gram + max(config.ridge, 1e-6) * regularizer,
+            cross,
+        )
+        adapter.head.weight.copy_(coefficients[:-1].transpose(0, 1))
+        adapter.head.bias.copy_(coefficients[-1])
+    adapter.eval()
+    return adapter, mean, std
+
+
 def _locked_metric_summary(
     items,
     adapter,
@@ -104,16 +178,8 @@ def _locked_metric_summary(
             adapted_input = adapter(item.iphone, features, confidence=item.confidence)
             baseline = frozen_tm(item.iphone)
             student = frozen_tm(adapted_input.image)
-            baseline_errors = _metric_errors(
-                baseline,
-                item.teacher,
-                item.example.roi_mask,
-            )
-            adapted_errors = _metric_errors(
-                student,
-                item.teacher,
-                item.example.roi_mask,
-            )
+            baseline_errors = _metric_errors(baseline, item.teacher, item.example.roi_mask)
+            adapted_errors = _metric_errors(student, item.teacher, item.example.roi_mask)
             for name in improvements:
                 before = baseline_errors[name]
                 after = adapted_errors[name]
@@ -142,13 +208,7 @@ def train_phase1(
     config: Phase1TrainingConfig | None = None,
     canonicalizer: DeviceCanonicalizer | None = None,
 ) -> Phase1TrainingResult:
-    """Train Phase 1 with fold-local pair targets and normalization.
-
-    Pair-specific parameters for a validation scene are never computed or
-    consumed by that fold's training path. The final artifact is fitted only
-    after out-of-fold behavior has been measured and the development protocol
-    is frozen.
-    """
+    """Train Phase 1 with fold-local pair targets and normalization."""
 
     config = config or Phase1TrainingConfig()
     canonicalizer = canonicalizer or DeviceCanonicalizer()
@@ -185,12 +245,7 @@ def train_phase1(
             for item in prepared_development
             if item.example.scene_group in fold.train_groups
         ]
-        fold_targets = core._fit_pair_targets(
-            fold_candidates,
-            solver,
-            frozen_tm,
-            config,
-        )
+        fold_targets = core._fit_pair_targets(fold_candidates, solver, frozen_tm, config)
         train_items = [
             item
             for item in fold_candidates
@@ -201,7 +256,7 @@ def train_phase1(
             for item in prepared_development
             if item.example.scene_group in fold.validation_groups
         ]
-        adapter, mean, std = core._train_predictor(train_items, fold_targets, config)
+        adapter, mean, std = _fit_ridge_predictor(train_items, fold_targets, config)
         improvements, _ = core._evaluate_items(
             validation_items,
             adapter,
@@ -231,18 +286,13 @@ def train_phase1(
         out_of_fold.get(item.example.pair_id, 0.0)
         for item in prepared_development
     ]
-    final_targets = core._fit_pair_targets(
-        prepared_development,
-        solver,
-        frozen_tm,
-        config,
-    )
+    final_targets = core._fit_pair_targets(prepared_development, solver, frozen_tm, config)
     qualified_development = [
         item
         for item in prepared_development
         if item.example.pair_id in final_targets
     ]
-    final_adapter, feature_mean, feature_std = core._train_predictor(
+    final_adapter, feature_mean, feature_std = _fit_ridge_predictor(
         qualified_development,
         final_targets,
         config,
@@ -263,10 +313,7 @@ def train_phase1(
     )
 
     normalized_development = torch.cat(
-        [
-            (item.features - feature_mean) / feature_std
-            for item in qualified_development
-        ],
+        [(item.features - feature_mean) / feature_std for item in qualified_development],
         dim=0,
     )
     support_min = normalized_development.min(dim=0).values
@@ -327,6 +374,7 @@ def train_phase1(
     validation_payload["locked_metric_summary"] = locked_metrics
     validation_payload["samsung_backbone_unchanged"] = backbone_unchanged
     validation_payload["samsung_backbone_state_sha256"] = backbone_before
+    validation_payload["parameter_predictor"] = "weighted_ridge_on_fixed_tanh_features"
     payload = {
         "schema_version": 1,
         "feature_names": list(PHASE1_FEATURE_NAMES),
