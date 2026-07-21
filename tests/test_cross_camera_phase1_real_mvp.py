@@ -151,6 +151,7 @@ class Phase1RealMVPTests(unittest.TestCase):
             predictor_learning_rate=0.04,
             bootstrap_samples=200,
             seed=9,
+            data_mode="synthetic",
         )
         with tempfile.TemporaryDirectory() as directory:
             artifact_path = Path(directory) / "phase1_adapter.pt"
@@ -183,6 +184,7 @@ class Phase1RealMVPTests(unittest.TestCase):
         self.assertEqual(manifest["phase1_status"], "pass")
         self.assertEqual(manifest["samsung_model_sha256"], "a" * 64)
         self.assertFalse(manifest["phase2_executed"])
+        self.assertFalse(manifest["real_data_effectiveness_verified"])
 
 
 if __name__ == "__main__":
