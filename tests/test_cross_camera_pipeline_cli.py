@@ -54,6 +54,10 @@ class ConfigAndPipelineTests(unittest.TestCase):
         nested["phase2"] = {**nested["phase2"], "surprise": True}
         with self.assertRaises(ValueError):
             PipelineConfig.from_mapping(nested)
+        ambiguous = valid_config()
+        ambiguous["phase2"] = {"enabled": "false", "minimum_eligible_samples": 50}
+        with self.assertRaises(ValueError):
+            PipelineConfig.from_mapping(ambiguous)
         real = valid_config()
         real["mode"] = "real"
         with self.assertRaises(ValueError):
@@ -162,16 +166,15 @@ class CLITests(unittest.TestCase):
         self.assertEqual(len(manifest_lines), 1)
         self.assertTrue(json.loads(manifest_lines[0])["synthetic"])
 
-    def test_real_run_without_calibration_profile_fails_closed(self):
+    def test_real_run_with_unavailable_samsung_checkpoint_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            checkpoint = root / "samsung.pth"
-            checkpoint.write_bytes(b"placeholder-only-for-preflight-order")
+            missing_checkpoint = root / "missing-samsung.pth"
             config_payload = valid_config()
             config_payload["mode"] = "real"
             config_payload["models"] = {
                 **config_payload["models"],
-                "samsung_checkpoint": str(checkpoint),
+                "samsung_checkpoint": str(missing_checkpoint),
                 "require_real_model": True,
             }
             config_path = root / "real.yaml"
@@ -183,12 +186,18 @@ class CLITests(unittest.TestCase):
                         "real-run",
                         "--config",
                         str(config_path),
+                        "--adapter-checkpoint",
+                        str(root / "phase1.pt"),
+                        "--input",
+                        str(root / "input.pt"),
+                        "--metadata",
+                        str(root / "metadata.json"),
                         "--output-dir",
                         str(root / "output"),
                     ]
                 )
         self.assertEqual(exit_code, 2)
-        self.assertIn("calibration_profile", stderr.getvalue())
+        self.assertIn("Samsung checkpoint is unavailable", stderr.getvalue())
 
 
 if __name__ == "__main__":
