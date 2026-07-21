@@ -2,118 +2,183 @@
 
 ## Status
 
-`IMPLEMENTED` for the bounded, mechanically verifiable MVP. Real cross-device effectiveness remains unverified because the frozen 50-pair calibration set and real iPhone holdouts are not present in this environment.
+```text
+PHASE1_CODE_READY
+REAL_PHASE1_ACCEPTANCE_PENDING
+PHASE2_BLOCKED
+```
+
+The Phase-1 architecture and executable code now match the frozen requirements in `docs/CROSS_CAMERA_REQUIREMENT_BASELINE.md`.
+
+Real cross-device effectiveness is not declared because the actual 50-pair calibration manifests and independent target holdouts were not available in this repository session.
 
 ## Baseline
 
 - Repository: `baolinv0/modular_neural_isp`
-- Development branch: `feature/cross-camera-domain-adaptation-v2`
-- Baseline branch: `feature/modular-capture-pipeline`
-- Baseline commit: `efbfdfea87385254cb36e23354fa9b7f1ae2e4ce`
-- Initial working tree: clean
-- Initial test result: 31 tests passed, zero failures/skips
-- IQA-PGT reference: `baolinv0/IQA-PGT`, `v1@83b040d5430f4c953e06368e39c823a5eb793848`
-- IQA reference: `baolinv0/IQA`, `fix/tmqa-p1-remediation-v0.2.0@1d73bc0fd14bcffb30feff49471e6c9d2f05cb45`
-- Local Samsung checkpoint exercised: `photofinishing/models/photofinishing_s24-style-0.pth`, SHA-256 `5137b1a9da936814544a0259add95530e124d954fac8e08ece61333be630c09f`
+- Branch: `feature/cross-camera-domain-adaptation-v2`
+- Original branch head before remediation: `240c21b3e0069a2e9c1d85491d10816801ecae69`
+- Integration base: `feature/modular-capture-pipeline@efbfdfea87385254cb36e23354fa9b7f1ae2e4ce`
+- Draft PR: `#6 Cross-camera Phase 1 observable-output remediation`
 
-## CURRENT STATE before modification
+## Corrected requirement
 
-The repository contained a runnable modular capture pipeline, adapters for the repository photofinishing model, 31 passing tests, and included Samsung photofinishing checkpoints. It did not contain a cross-camera calibration contract, target-domain adapter, source residual estimator, pseudo-supervision teachers, projection/certification/router, cross-camera CLI, canary, or lineage manifest.
+The Adapter is not trained to reconstruct an unobservable Samsung linear input.
 
-No CUDA device, real iPhone data, 50-pair calibration set, trained target adapter, or local Qwen/InternVL/Ovis checkpoint was available. The included Samsung checkpoint was available and could be loaded on CPU.
-
-## GAPS addressed
-
-- No observable direction anchor: added Samsung-teacher distillation, Samsung-GT teacher qualification, source residual profiles, and source/locked validation gates.
-- VLM EV bottleneck: VLM diagnosis is semantic-only and cannot emit numerical correction strength.
-- Overlapping teachers: L1 is global; L2 is ROI-conditioned with feathered spatial correction; L3 is a local proposal that must be projected.
-- Unsafe or ungrounded pixel targets: raw generated images are ineligible, projection creates a new hash, and projected outputs receive all 13 gates again.
-- Hard-coded, unproven gates: profiles can be calibrated from source distributions and bind dataset/profile hashes; synthetic defaults are labeled and cannot authorize real pixel supervision.
-- Additive uncertainty: replaced by typed, independent fields and a necessary-condition route table.
-- Single perceptual arbiter: added local-only InternVL AB/BA and optional Ovis interfaces; neither can accept a candidate.
-- Missing data/lineage controls: added strict metadata/source/calibration/target/config/manifest contracts and canonical tensor hashes.
-- Missing executable verification: added deterministic CLI canary, real checkpoint interface canary, and one unified script.
-
-## IMPLEMENTATION SCOPE
-
-### Implemented
-
-1. Strict BLC+WB 16-bit linear input, source, exact 40+10 calibration, target, config, manifest and lineage contracts.
-2. Deterministic canonicalization: white level, known comparable applied-AWB gain alignment, common CCM, bounded exposure prior, masks and independent confidences.
-3. Identity-initialized low-capacity `TargetCameraAdapter`: gain → near-identity 3x3 matrix → six-point monotonic luminance curve.
-4. Per-pair WLS/isotonic initialization, refinement through a frozen Samsung TM, tiny `z -> theta` predictor fitting, teacher P75/P90 qualification, and 40/10 validation criteria.
-5. Source residual profile, fixed interpretable `psi`, OOD-aware estimator, dynamic global/face ROI, standardized vector DirectionAlignment, and Phase 2 activation criteria.
-6. Distinct L1/L2/L3 orchestration, local-only open-source policy and real adapter interfaces for Qwen3-VL, Qwen-Image-Edit, InternVL and optional Ovis.
-7. Pre-projection safety, TM-space projection, 69-scalar luminance-only `TMResidualAdapter`, source identity/non-regression losses.
-8. Thirteen non-compensable certification gates, distribution-derived threshold profiles, structured uncertainty, supervision routing, manifests and lineage.
-9. CLI, deterministic Synthetic Canary, real-mode fail-closed preflight, real Samsung checkpoint load/forward/gradient canary, unified verification.
-
-### Not implemented
-
-1. Full AWB re-estimation, black-level correction, 3A, full color-style transfer, denoising, deblurring, super-resolution, multi-frame HDR reconstruction, online/RL adaptation, or Samsung backbone retraining.
-2. Real 50-pair calibration training/evaluation, because the data is unavailable.
-3. Execution of real Qwen3-VL/Qwen-Image-Edit/InternVL/Ovis weights, because local checkpoints and GPU are unavailable.
-4. Production real-run artifact loading beyond strict preflight; it deliberately stops instead of substituting an untrained adapter or synthetic profile.
-
-## Modified files
-
-- `cross_camera_tm/`: contracts, canonicalization, adapters, Phase 1 fitting/validation, residual profiles, teachers, local-model policy, projection, residual adapter, certification, routing, lineage, manifest, configuration, pipeline, canary and CLI.
-- `tests/test_cross_camera_*.py`: behavioral, failure-path, deterministic and integration tests.
-- `configs/cross_camera_tm_v2.yaml`: strict synthetic-canary configuration with pixel routing disabled.
-- `main/run_cross_camera_adaptation.py`: CLI entrypoint.
-- `scripts/`: unified verification, compatibility wrapper, canary comparator, and real Samsung checkpoint canary.
-- `docs/superpowers/`: frozen design and implementation plan.
-- `docs/PSEUDO_SUPERVISION_IMPLEMENTATION_REPORT.md`: implementation and evidence report.
-- `capture_pipeline/README.md`: bounded integration and commands.
-- `.gitignore`: generated Python/test/run artifacts.
-
-## Tests added or updated
-
-- Strict field, hash, split and upstream-state rejection.
-- Canonicalization ordering, confidence and masks.
-- Adapter identity/capacity/order/monotonicity/confidence; per-pair initialization/refinement; predictor fitting; Phase 1 validation.
-- Fixed `psi`, source support/OOD, dynamic ROI, DirectionAlignment and activation.
-- L1/L2 distinction, L3 proposal-only policy, projection/color/detail behavior, bounded residual adapter, local/open-source enforcement.
-- All 13 gates, unavailable/non-compensation, raw injection, real-profile restriction, structured routes, manifest and lineage.
-- Strict config, deterministic end-to-end canary, Phase 2 disabled path, L3 projection/re-certification fallback, CLI files and real-run missing-profile rejection.
-
-## Validation executed
-
-The final fresh commands and exact results are recorded after implementation in `docs/PSEUDO_SUPERVISION_IMPLEMENTATION_REPORT.md`. The unified command is:
-
-```bash
-scripts/run_cross_camera_domain_adaptation_verification.sh
+```text
+Samsung teacher: O_s = F_s(C_s(X_s))
+iPhone student:  O_i = F_s(A_t(C_i(X_i)))
+Training target:  O_i approximately equals O_s
 ```
 
-It runs compile checks, all old and new unittests, strict config validation, two independent Synthetic Canary runs and byte-semantic comparison, manifest/output validation, and strict load/forward/input-gradient checks against the included Samsung checkpoint.
+Samsung GT is used to qualify the Samsung teacher and calibrate the source residual distribution. A Samsung sample on which the frozen model clearly fails cannot supervise the iPhone Adapter.
 
-Fresh post-documentation result: exit `0`; compile `PASS`; 77 tests `OK` with zero skip/xfail; deterministic canary `PASS` with route `parameter`; real checkpoint interface canary `PASS`; output validation `PASS`; real-data effectiveness explicitly `UNVERIFIED`.
+## Implemented
 
-## Known limitations
+### 1. Frozen requirement and data contracts
 
-- Mechanical tests do not demonstrate Samsung-style improvement on real iPhone images.
-- The source direction/profile and gate thresholds must be fitted from independent real Samsung/calibration data before real routing.
-- The 50-pair data sufficiency, scene coverage and approximate-registration quality remain empirical questions.
-- Incomplete phone HDR metadata limits deterministic exposure canonicalization; low confidence keeps the residual near identity.
-- Local VLM/editor/arbiter interfaces are implemented but only explicitly labeled deterministic doubles were mechanically exercised.
-- Pixel supervision is disabled in the default MVP. Real pixel routing additionally requires a non-synthetic calibrated profile, projection, full re-certification and every necessary condition.
+- Frozen Phase-1 baseline: `docs/CROSS_CAMERA_REQUIREMENT_BASELINE.md`.
+- Strict Samsung source and 50-pair calibration manifests.
+- Exact 40-development/10-locked split.
+- Scene-group separation between development and locked data.
+- Canonical tensor hashes and strict metadata JSON booleans.
+- Per-pair overlap, forward-backward consistency, valid ROI fraction and residual displacement.
 
-## Requirement mapping
+### 2. Device canonicalization
 
-| Requirement | Code | Evidence |
-|---|---|---|
-| Strict data contract | `contracts.py`, `config.py`, `manifest.py` | contract/config/manifest tests |
-| Open-source-only/local-only | `policy.py` | remote/closed rejection tests |
-| Qwen3-VL diagnosis | `Qwen3VLDiagnosisAdapter` | semantic-only/no-strength test |
-| L1/L2/L3 orchestration | `teachers.py`, `pipeline.py` | distinction and L3 fallback integration tests |
-| Qwen-Image-Edit local adapter | `policy.py` | explicitly labeled local interface-double test |
-| Pre-projection safety and TM projection | `projection.py` | malformed proposal and projection tests |
-| Projected target full certification | `certification.py`, `pipeline.py` | L3 fallback re-certifies; 13-gate tests |
-| InternVL anonymous AB and Ovis inspection | `policy.py`, `pipeline.py` | typed local interfaces; neither authorizes acceptance |
-| Consistency/uncertainty/router | `routing.py` | no additive score; route necessary-condition tests |
-| CLI/manifest/lineage | `cli.py`, `manifest.py`, `lineage.py` | CLI output and lineage tests |
-| Synthetic Canary/unified verification | `canary.py`, `scripts/` | deterministic double-run and real checkpoint interface canary |
+- White-level normalization.
+- Exposure-scale normalization.
+- Reliable-range and highlight masks.
+- Metadata-supported applied-AWB alignment only when coordinate definitions are comparable.
+- Optional declared CCM into a common linear color space.
+- Missing or unreliable metadata lowers confidence rather than inventing a correction.
 
-## Builder boundary
+### 3. Low-capacity TargetCameraAdapter
 
-This report is Builder evidence, not final acceptance. Reviewer and Evaluator decisions are independent artifacts produced by their assigned agents.
+```text
+bounded residual channel gain
++ near-identity 3x3 transform
++ six-point monotonic luminance curve
+```
+
+No Phase-1 U-Net, high-resolution gain map, adversarial alignment or arbitrary local color transform was introduced.
+
+### 4. Observable-output pair fitting
+
+- Input-side weighted least-squares gain and near-identity matrix initialization.
+- Low-dimensional monotonic curve initialization.
+- Joint refinement through the frozen Samsung TM.
+- Mandatory global tone loss including log-luminance quantiles, highlight headroom, clipping and contrast.
+- ROI and low-frequency losses enabled only when alignment evidence permits them.
+- Teacher P75/P90 qualification and downweight/reject behavior.
+
+### 5. True group-aware cross-validation
+
+Each of five folds independently computes:
+
+```text
+fold training pair targets
+→ fold normalization
+→ fold PCA basis
+→ teacher-weighted ridge z-to-theta predictor
+→ unseen scene-group validation
+```
+
+Validation groups do not participate in pair-target fitting, normalization, PCA or ridge fitting for that fold.
+
+The final artifact is trained on all 40 development pairs only after out-of-fold evaluation has been computed.
+
+### 6. Acceptance evidence
+
+Phase-1 acceptance requires:
+
+- at least four positive folds;
+- at least 30/40 development pairs improved out of fold;
+- bootstrap lower bound above zero;
+- positive locked median improvement;
+- positive locked global-tone and ROI medians;
+- no locked highlight regression;
+- no Adapter boundary saturation;
+- sufficient qualified-teacher coverage;
+- unchanged Samsung backbone state hash.
+
+Because the TargetCameraAdapter is not inserted in the Samsung source branch, an unchanged frozen backbone means Samsung source replay output is unchanged by Phase 1.
+
+### 7. Artifact and real execution chain
+
+The versioned artifact binds:
+
+- Samsung checkpoint SHA;
+- source manifest SHA;
+- calibration manifest SHA;
+- feature schema and normalization;
+- calibration-support geometry;
+- Adapter state;
+- training configuration;
+- locked validation evidence.
+
+Executable commands:
+
+```text
+train-phase1
+→ evaluate-phase1
+→ real-run
+```
+
+`evaluate-phase1` rejects a calibration manifest that differs from the artifact's training manifest. `real-run` rejects a failed artifact, model mismatch, invalid input/metadata or input outside calibrated support.
+
+### 8. Phase-2 boundary
+
+- Phase 2 is disabled in the default configuration and real example configuration.
+- Phase-1 inference records `phase2_status=blocked_until_separate_activation`.
+- Existing Phase-2 components remain non-blocking interfaces and are not used to claim a complete self-evolution loop.
+
+## Files added or materially changed
+
+- `docs/CROSS_CAMERA_REQUIREMENT_BASELINE.md`
+- `docs/PHASE1_REQUIREMENT_AUDIT.md`
+- `docs/PHASE1_DATA_AND_RUNBOOK.md`
+- `cross_camera_tm/phase1_data.py`
+- `cross_camera_tm/phase1_training.py`
+- `cross_camera_tm/phase1_protocol.py`
+- `cross_camera_tm/cli.py`
+- `cross_camera_tm/config.py`
+- `configs/cross_camera_tm_v2.yaml`
+- `configs/cross_camera_tm_v2.real.example.yaml`
+- `tests/test_cross_camera_phase1_real_mvp.py`
+- `tests/test_cross_camera_pipeline_cli.py`
+- `.github/workflows/cross-camera-phase1.yml`
+
+## Verification
+
+GitHub Actions workflow: `Cross-camera Phase 1`.
+
+The latest code verification before this report-only update completed successfully with:
+
+```text
+compileall: PASS
+cross-camera tests: 49 PASS
+synthetic/default config validation: PASS
+real example config validation: PASS
+included Samsung checkpoint strict load: PASS
+Samsung checkpoint finite forward: PASS
+frozen model parameter-gradient check: PASS
+input-gradient canary: PASS
+```
+
+The workflow retains the complete unittest log as an artifact.
+
+## Requirement audit
+
+The full requirement-by-requirement result is recorded in:
+
+```text
+docs/PHASE1_REQUIREMENT_AUDIT.md
+```
+
+All architecture and executable-code requirements are marked PASS.
+
+## Known evidence limitation
+
+Repository tests use deterministic synthetic calibration data to prove mechanics, leakage prevention, artifact behavior and fail-closed paths. They do not prove the result on the actual captured 50 pairs.
+
+The next valid action is to prepare the real source/calibration manifests using `docs/PHASE1_DATA_AND_RUNBOOK.md`, run the frozen 40+10 protocol once, and retain the resulting reports without changing capacity, features, losses or thresholds after opening the locked set.
