@@ -165,6 +165,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         artifact = load_phase1_artifact(args.adapter_checkpoint, expected_model_sha256=model_sha)
         if args.command == "evaluate-phase1":
+            calibration_sha = manifest_sha256(args.calibration_manifest)
+            if calibration_sha != artifact.calibration_manifest_sha256:
+                raise ValueError("calibration manifest does not match the Phase 1 artifact")
             calibration_examples = load_calibration_manifest(args.calibration_manifest)
             report = evaluate_phase1_artifact(
                 calibration_examples=calibration_examples,
