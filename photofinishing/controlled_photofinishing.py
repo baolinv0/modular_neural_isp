@@ -8,8 +8,12 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from brightness_ops import srgb_oetf
-from control_adapters import build_control_adapter, count_trainable_parameters
+try:
+    from .brightness_ops import srgb_oetf
+    from .control_adapters import build_control_adapter, count_trainable_parameters
+except ImportError:
+    from brightness_ops import srgb_oetf
+    from control_adapters import build_control_adapter, count_trainable_parameters
 
 
 @dataclass(frozen=True)
