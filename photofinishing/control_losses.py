@@ -5,7 +5,10 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from brightness_ops import log_luminance_from_srgb, luminance_gradient
+try:
+    from .brightness_ops import log_luminance_from_srgb, luminance_gradient
+except ImportError:
+    from brightness_ops import log_luminance_from_srgb, luminance_gradient
 
 
 def pairwise_monotonic_loss(pred_low: torch.Tensor, pred_high: torch.Tensor,
