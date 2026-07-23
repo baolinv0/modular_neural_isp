@@ -7,6 +7,7 @@ import torch
 from torch import nn
 
 import cross_camera_tm.phase1_training as phase1_training
+from cross_camera_tm.canonicalization import DeviceCanonicalizer
 from cross_camera_tm.contracts import AlignmentQuality, LinearMetadata
 from cross_camera_tm.phase1 import FrozenSamsungTM
 from cross_camera_tm.phase1_data import (
@@ -20,6 +21,12 @@ from cross_camera_tm.phase1_protocol import (
     load_phase1_artifact,
     run_phase1_inference,
     train_phase1,
+)
+from cross_camera_tm.phase1_remediation import (
+    DEFAULT_ALIGNMENT_POLICY,
+    load_hardened_phase1_artifact,
+    run_hardened_phase1_inference,
+    seal_phase1_artifact,
 )
 
 
@@ -149,6 +156,7 @@ class Phase1RealMVPTests(unittest.TestCase):
     def test_train_artifact_and_inference_use_observable_teacher_output(self):
         sources, pairs = make_data()
         frozen_tm = FrozenSamsungTM(TinyTone())
+        canonicalizer = DeviceCanonicalizer()
         config = Phase1TrainingConfig(
             solver_steps=6,
             solver_learning_rate=0.08,
@@ -173,6 +181,7 @@ class Phase1RealMVPTests(unittest.TestCase):
                     calibration_manifest_sha256="c" * 64,
                     artifact_path=artifact_path,
                     config=config,
+                    canonicalizer=canonicalizer,
                 )
             self.assertTrue(result.report.passed, result.report.reasons)
             loaded = load_phase1_artifact(artifact_path, expected_model_sha256="a" * 64)
@@ -181,6 +190,29 @@ class Phase1RealMVPTests(unittest.TestCase):
                 metadata=pairs[-1].iphone_metadata,
                 frozen_tm=frozen_tm,
                 artifact=loaded,
+                canonicalizer=canonicalizer,
+            )
+            sealed = seal_phase1_artifact(
+                artifact_path,
+                calibration_examples=pairs,
+                canonicalizer=canonicalizer,
+                alignment_policy=DEFAULT_ALIGNMENT_POLICY,
+                frozen_tm=frozen_tm,
+                expected_model_sha256="a" * 64,
+            )
+            hardened = load_hardened_phase1_artifact(
+                artifact_path,
+                expected_model_sha256="a" * 64,
+                expected_canonicalization_sha256=canonicalizer.config.sha256,
+                expected_alignment_policy_sha256=DEFAULT_ALIGNMENT_POLICY.sha256,
+            )
+            hardened_output, hardened_manifest = run_hardened_phase1_inference(
+                image=pairs[-1].iphone_image,
+                metadata=pairs[-1].iphone_metadata,
+                frozen_tm=frozen_tm,
+                artifact=hardened,
+                canonicalizer=canonicalizer,
+                require_real_artifact=False,
             )
 
         self.assertEqual(fit_targets.call_count, 6)
@@ -212,6 +244,12 @@ class Phase1RealMVPTests(unittest.TestCase):
         self.assertEqual(manifest["samsung_model_sha256"], "a" * 64)
         self.assertFalse(manifest["phase2_executed"])
         self.assertFalse(manifest["real_data_effectiveness_verified"])
+        self.assertGreater(sealed.max_support_distance, 0.0)
+        self.assertGreaterEqual(sealed.minimum_parameter_bound_margin, 0.0)
+        self.assertTrue(torch.allclose(hardened_output, output))
+        self.assertEqual(hardened_manifest["canonicalization_sha256"], canonicalizer.config.sha256)
+        self.assertFalse(hardened_manifest["real_phase1_calibration_accepted"])
+        self.assertFalse(hardened_manifest["real_target_effectiveness_verified"])
 
 
 if __name__ == "__main__":
