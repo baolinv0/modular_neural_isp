@@ -190,6 +190,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             expected_alignment_policy_sha256=alignment_policy.sha256,
         )
         if args.command == "evaluate-phase1":
+            if artifact.data_mode != "real":
+                raise ValueError("evaluate-phase1 requires a real Phase 1 artifact")
             calibration_sha = manifest_sha256(args.calibration_manifest)
             if calibration_sha != artifact.calibration_manifest_sha256:
                 raise ValueError("calibration manifest does not match the Phase 1 artifact")
@@ -210,6 +212,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps(report, sort_keys=True))
             passed = (
                 report["phase1_artifact_passed"]
+                and report["real_phase1_calibration_accepted"]
                 and report["locked_median_improvement"] > 0.0
                 and report["minimum_parameter_bound_margin"] > 0.0
             )
