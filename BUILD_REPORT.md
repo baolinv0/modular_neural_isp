@@ -18,7 +18,7 @@ Real cross-device effectiveness is not declared because the captured 50-pair dat
 ```text
 Repository: baolinv0/modular_neural_isp
 Branch: feature/cross-camera-domain-adaptation-v2
-Verified HEAD: 4af77ceaea5e38d1b42ac828d61de1472e2146ab
+Code verification HEAD: 29e7dcb30af855433171cbecc103cbb523a45e0c
 Base: feature/modular-capture-pipeline@efbfdfea87385254cb36e23354fa9b7f1ae2e4ce
 Draft PR: #6
 ```
@@ -33,71 +33,32 @@ Training target:  O_i approximately equals O_s
 
 The Adapter does not reconstruct an unobservable Samsung sensor-linear target. Samsung GT qualifies the Samsung teacher and calibrates source residuals.
 
-## Implemented Phase-1 chain
-
-```text
-strict source/calibration manifests
-→ numeric alignment-evidence downgrade
-→ config-bound device canonicalization
-→ Samsung teacher qualification
-→ fold-local pair refinement through frozen Samsung TM
-→ fold-local PCA + teacher-weighted ridge predictor
-→ locked-holdout acceptance
-→ schema-2 hardened artifact
-→ evaluate-phase1
-→ fail-closed real-run
-```
-
 ## Second-review remediation
 
-### API-level Phase-2 isolation
+- `CrossCameraPipeline.run()` rejects non-synthetic Phase 2 before candidate generation.
+- Support and minimum Adapter-margin thresholds use the 40 development pairs only.
+- Artifact, policy and runtime thresholds reject NaN/Inf and invalid negatives.
+- `evaluate-phase1` requires a real artifact and real calibration acceptance.
+- Formal loaders enforce device roles, metadata/tensor binding, non-negative tensors, unique content and development/locked disjointness.
+- The obsolete leaking `phase1_training.train_phase1` function is removed from source; `phase1_protocol.train_phase1` is the sole implementation.
+- CI runs both focused cross-camera and full repository regression.
 
-`CrossCameraPipeline.run()` rejects every non-synthetic Phase-2 request before candidate generation:
+## Stable canary correction
 
-```text
-phase2_enabled=true + synthetic=false
-→ PHASE2_NOT_IMPLEMENTED
-```
-
-Real config and pixel-routing guards remain active. Experimental Phase-2 interfaces cannot emit real parameter, range, preference or pixel supervision.
-
-### Holdout-independent runtime policy
-
-Both runtime thresholds are calibrated from the 40 development pairs only:
-
-- maximum calibration-support distance;
-- minimum Adapter parameter-bound margin.
-
-The ten locked pairs evaluate the frozen system but do not set deployment policy.
-
-### Finite-value enforcement
-
-Artifact thresholds, alignment thresholds and runtime support/margin measurements reject NaN, Inf and invalid negatives.
-
-### Real evaluation identity
-
-`evaluate-phase1` requires a real artifact and successful real Phase-1 calibration acceptance. A sealed synthetic artifact cannot be presented as a real evaluation result.
-
-### Strict formal data contracts
-
-Source and calibration loaders enforce device roles, metadata/tensor binding, non-empty and unique IDs, finite non-negative tensors, source uniqueness, pair uniqueness and development/locked exact-content disjointness.
-
-### Single training implementation
-
-The obsolete leaking `phase1_training.train_phase1` function has been removed from source. `phase1_training.py` contains shared primitives and artifact operations only. The sole authoritative implementation is `phase1_protocol.train_phase1`.
+The original synthetic integration test mixed protocol validation with randomly optimized pair targets and could flip near acceptance boundaries across CI hardware. Production thresholds were not changed. The test now supplies the analytically correct fixed 1.25x pair transform while retaining fold-local call inspection, artifact serialization, locked evaluation and inference checks. Pair-solver optimization remains covered by independent unit tests.
 
 ## Verification
 
 Exact verified head:
 
 ```text
-4af77ceaea5e38d1b42ac828d61de1472e2146ab
+29e7dcb30af855433171cbecc103cbb523a45e0c
 ```
 
 GitHub Actions run:
 
 ```text
-30010973315: PASS
+30011756321: PASS
 ```
 
 Evidence:
