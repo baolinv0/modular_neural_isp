@@ -1,6 +1,5 @@
 import importlib
 import json
-import math
 import tempfile
 import unittest
 from pathlib import Path
@@ -142,6 +141,12 @@ class SecondReviewFailClosedTests(unittest.TestCase):
             SimpleNamespace(split="locked") for _ in range(10)
         ]
         prepared = [SimpleNamespace(teacher_weight=1.0) for _ in range(40)]
+        artifact = SimpleNamespace(
+            teacher_profile=SimpleNamespace(),
+            adapter=SimpleNamespace(),
+            feature_mean=torch.zeros(1),
+            feature_std=torch.ones(1),
+        )
         with patch.object(remediation.core, "_prepare_pairs", return_value=prepared) as prepare, patch.object(
             remediation.core,
             "_evaluate_items",
@@ -151,7 +156,7 @@ class SecondReviewFailClosedTests(unittest.TestCase):
                 examples,
                 SimpleNamespace(),
                 SimpleNamespace(),
-                SimpleNamespace(teacher_profile=SimpleNamespace()),
+                artifact,
             )
         observed = prepare.call_args.args[0]
         self.assertEqual(len(observed), 40)
@@ -234,7 +239,6 @@ class StrictManifestContractTests(unittest.TestCase):
     def _calibration_manifest(self, root: Path, *, duplicate_across_split: bool = False) -> Path:
         rows = []
         cached_iphone = None
-        cached_path = None
         cached_hash = None
         for index in range(50):
             pair_id = f"pair-{index:02d}"
@@ -247,16 +251,14 @@ class StrictManifestContractTests(unittest.TestCase):
             iphone_meta = root / f"{iphone_id}.json"
             samsung_meta = root / f"{samsung_id}.json"
             if duplicate_across_split and index == 40:
-                iphone = cached_iphone
-                iphone_path = cached_path
+                iphone = cached_iphone.clone()
+                torch.save(iphone, iphone_path)
                 iphone_hash = cached_hash
-                iphone_id = "iphone-00"
-                iphone_meta = root / "iphone-00.json"
             else:
                 iphone = _write_tensor(iphone_path, 0.1 + index * 0.002)
                 iphone_hash = canonical_tensor_sha256(iphone)
                 if index == 0:
-                    cached_iphone, cached_path, cached_hash = iphone, iphone_path, iphone_hash
+                    cached_iphone, cached_hash = iphone, iphone_hash
             samsung = _write_tensor(samsung_path, 0.2 + index * 0.002)
             gt = _write_tensor(gt_path, 0.18 + index * 0.002)
             _write_metadata(iphone_meta, iphone_id, "iPhone")
