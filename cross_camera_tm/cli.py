@@ -11,21 +11,19 @@ import torch
 from torch import nn
 
 from .canary import run_synthetic_canary
+from .canonicalization import DeviceCanonicalizer
 from .config import PipelineConfig
 from .contracts import LinearMetadata, canonical_tensor_sha256
 from .phase1 import FrozenSamsungTM
-from .phase1_data import (
-    file_sha256,
-    load_calibration_manifest,
-    load_source_manifest,
-    manifest_sha256,
-)
-from .phase1_protocol import (
-    Phase1TrainingConfig,
-    evaluate_phase1_artifact,
-    load_phase1_artifact,
-    run_phase1_inference,
-    train_phase1,
+from .phase1_data import file_sha256, load_source_manifest, manifest_sha256
+from .phase1_protocol import Phase1TrainingConfig, train_phase1
+from .phase1_remediation import (
+    DEFAULT_ALIGNMENT_POLICY,
+    evaluate_hardened_phase1_artifact,
+    load_calibration_manifest_strict,
+    load_hardened_phase1_artifact,
+    run_hardened_phase1_inference,
+    seal_phase1_artifact,
 )
 
 
@@ -97,7 +95,6 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--calibration-manifest", required=True, type=Path)
     train.add_argument("--output-dir", required=True, type=Path)
     train.add_argument("--solver-steps", type=int, default=24)
-    train.add_argument("--data-mode", choices=("real", "synthetic"), default="real")
 
     evaluate = subparsers.add_parser("evaluate-phase1")
     evaluate.add_argument("--config", required=True, type=Path)
@@ -111,7 +108,6 @@ def build_parser() -> argparse.ArgumentParser:
     real.add_argument("--input", required=True, type=Path)
     real.add_argument("--metadata", required=True, type=Path)
     real.add_argument("--output-dir", required=True, type=Path)
-    real.add_argument("--max-support-distance", type=float, default=0.25)
     return parser
 
 
@@ -137,11 +133,17 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         checkpoint = _require_real_config(config)
         frozen_tm, model_sha = _load_samsung_tm(checkpoint)
+        canonicalizer = DeviceCanonicalizer(config.canonicalization)
+        alignment_policy = DEFAULT_ALIGNMENT_POLICY
 
         if args.command == "train-phase1":
             source_examples = load_source_manifest(args.source_manifest)
-            calibration_examples = load_calibration_manifest(args.calibration_manifest)
+            calibration_examples = load_calibration_manifest_strict(
+                args.calibration_manifest,
+                policy=alignment_policy,
+            )
             args.output_dir.mkdir(parents=True, exist_ok=True)
+            artifact_path = args.output_dir / "phase1_adapter.pt"
             result = train_phase1(
                 source_examples=source_examples,
                 calibration_examples=calibration_examples,
@@ -149,30 +151,57 @@ def main(argv: Sequence[str] | None = None) -> int:
                 samsung_model_sha256=model_sha,
                 source_manifest_sha256=manifest_sha256(args.source_manifest),
                 calibration_manifest_sha256=manifest_sha256(args.calibration_manifest),
-                artifact_path=args.output_dir / "phase1_adapter.pt",
+                artifact_path=artifact_path,
                 config=Phase1TrainingConfig(
                     solver_steps=args.solver_steps,
                     seed=config.seed,
-                    data_mode=args.data_mode,
+                    data_mode="real",
                 ),
+                canonicalizer=canonicalizer,
             )
-            report_payload = asdict(result.report)
+            hardened = seal_phase1_artifact(
+                artifact_path,
+                calibration_examples=calibration_examples,
+                canonicalizer=canonicalizer,
+                alignment_policy=alignment_policy,
+                frozen_tm=frozen_tm,
+                expected_model_sha256=model_sha,
+            )
+            report_payload = {
+                **asdict(result.report),
+                "canonicalization_sha256": hardened.canonicalization_sha256,
+                "alignment_policy_sha256": hardened.alignment_policy_sha256,
+                "max_support_distance": hardened.max_support_distance,
+                "minimum_parameter_bound_margin": hardened.minimum_parameter_bound_margin,
+                "real_phase1_calibration_accepted": hardened.real_phase1_calibration_accepted,
+                "real_source_replay_verified": hardened.real_source_replay_verified,
+                "real_target_effectiveness_verified": hardened.real_target_effectiveness_verified,
+            }
             (args.output_dir / "phase1_training_report.json").write_text(
                 json.dumps(report_payload, sort_keys=True, indent=2), encoding="utf-8"
             )
             print(json.dumps(report_payload, sort_keys=True))
             return 0 if result.report.passed else 3
 
-        artifact = load_phase1_artifact(args.adapter_checkpoint, expected_model_sha256=model_sha)
+        artifact = load_hardened_phase1_artifact(
+            args.adapter_checkpoint,
+            expected_model_sha256=model_sha,
+            expected_canonicalization_sha256=canonicalizer.config.sha256,
+            expected_alignment_policy_sha256=alignment_policy.sha256,
+        )
         if args.command == "evaluate-phase1":
             calibration_sha = manifest_sha256(args.calibration_manifest)
             if calibration_sha != artifact.calibration_manifest_sha256:
                 raise ValueError("calibration manifest does not match the Phase 1 artifact")
-            calibration_examples = load_calibration_manifest(args.calibration_manifest)
-            report = evaluate_phase1_artifact(
+            calibration_examples = load_calibration_manifest_strict(
+                args.calibration_manifest,
+                policy=artifact.alignment_policy,
+            )
+            report = evaluate_hardened_phase1_artifact(
                 calibration_examples=calibration_examples,
                 frozen_tm=frozen_tm,
                 artifact=artifact,
+                canonicalizer=canonicalizer,
             )
             args.output_dir.mkdir(parents=True, exist_ok=True)
             (args.output_dir / "phase1_evaluation_report.json").write_text(
@@ -186,18 +215,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             return 0 if passed else 3
 
-        if args.max_support_distance < 0:
-            raise ValueError("max-support-distance must be non-negative")
         image = _load_input_tensor(args.input)
         metadata = _load_metadata(args.metadata)
-        output, run_manifest = run_phase1_inference(
+        output, run_manifest = run_hardened_phase1_inference(
             image=image,
             metadata=metadata,
             frozen_tm=frozen_tm,
             artifact=artifact,
+            canonicalizer=canonicalizer,
+            require_real_artifact=True,
         )
-        if run_manifest["calibration_support_distance"] > args.max_support_distance:
-            raise ValueError("input is outside the calibrated Phase 1 support")
         args.output_dir.mkdir(parents=True, exist_ok=True)
         output_path = args.output_dir / "phase1_output.pt"
         torch.save(output, output_path)
@@ -207,7 +234,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "adapter_artifact_sha256": file_sha256(args.adapter_checkpoint),
                 "input_sha256": canonical_tensor_sha256(image),
                 "output_sha256": canonical_tensor_sha256(output),
-                "phase2_status": "blocked_until_separate_activation",
+                "phase2_status": "PHASE2_NOT_IMPLEMENTED",
             }
         )
         (args.output_dir / "run_manifest.json").write_text(
