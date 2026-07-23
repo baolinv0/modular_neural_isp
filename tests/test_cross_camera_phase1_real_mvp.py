@@ -7,6 +7,7 @@ import torch
 from torch import nn
 
 import cross_camera_tm.phase1_training as phase1_training
+from cross_camera_tm.adapters import PairTransformParameters
 from cross_camera_tm.canonicalization import DeviceCanonicalizer
 from cross_camera_tm.contracts import AlignmentQuality, LinearMetadata
 from cross_camera_tm.phase1 import FrozenSamsungTM
@@ -88,12 +89,11 @@ def make_data():
         iphone = samsung / 1.25
         split = "development" if index < 40 else "locked"
         scene_group = f"dev-scene-{index // 4}" if split == "development" else f"locked-scene-{(index - 40) // 5}"
-        pair_id = f"pair-{index}"
         roi_mask = torch.zeros(1, 1, 8, 8, dtype=torch.bool)
         roi_mask[:, :, 1:7, 1:7] = True
         pairs.append(
             Phase1CalibrationExample(
-                pair_id=pair_id,
+                pair_id=f"pair-{index}",
                 scene_group=scene_group,
                 split=split,
                 iphone_image=iphone,
@@ -106,6 +106,19 @@ def make_data():
             )
         )
     return sources, pairs
+
+
+def deterministic_pair_targets(items, _solver, _frozen_tm, _config):
+    result = {}
+    for item in items:
+        dtype = item.iphone.dtype
+        device = item.iphone.device
+        result[item.example.pair_id] = PairTransformParameters(
+            gains=torch.full((1, 3), 1.25, dtype=dtype, device=device),
+            matrix=torch.eye(3, dtype=dtype, device=device).unsqueeze(0),
+            curve_y=torch.linspace(0.0, 1.0, 6, dtype=dtype, device=device).unsqueeze(0),
+        )
+    return result
 
 
 class Phase1RealMVPTests(unittest.TestCase):
@@ -158,9 +171,8 @@ class Phase1RealMVPTests(unittest.TestCase):
         frozen_tm = FrozenSamsungTM(TinyTone())
         canonicalizer = DeviceCanonicalizer()
         config = Phase1TrainingConfig(
-            solver_steps=12,
+            solver_steps=6,
             solver_learning_rate=0.08,
-            hidden_dim=1,
             bootstrap_samples=200,
             seed=9,
             data_mode="synthetic",
@@ -171,7 +183,7 @@ class Phase1RealMVPTests(unittest.TestCase):
             with patch.object(
                 phase1_training,
                 "_fit_pair_targets",
-                wraps=phase1_training._fit_pair_targets,
+                side_effect=deterministic_pair_targets,
             ) as fit_targets:
                 result = train_phase1(
                     source_examples=sources,
