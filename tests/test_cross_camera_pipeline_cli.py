@@ -172,6 +172,7 @@ class CLITests(unittest.TestCase):
             missing_checkpoint = root / "missing-samsung.pth"
             config_payload = valid_config()
             config_payload["mode"] = "real"
+            config_payload["phase2"] = {"enabled": False, "minimum_eligible_samples": 50}
             config_payload["models"] = {
                 **config_payload["models"],
                 "samsung_checkpoint": str(missing_checkpoint),
