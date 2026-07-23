@@ -122,6 +122,10 @@ class PipelineConfig:
         )
         if mode == "real" and (not models.require_real_model or not models.samsung_checkpoint):
             raise ValueError("real mode requires an explicit Samsung checkpoint and require_real_model=true")
+        if mode == "real" and phase2_enabled:
+            raise ValueError("PHASE2_NOT_IMPLEMENTED: real Phase 2 is blocked until its evidence chain is implemented")
+        if mode == "real" and pixel_route_enabled:
+            raise ValueError("PIXEL_ROUTING_NOT_IMPLEMENTED: real pixel routing is outside the Phase 1 delivery")
         if mode == "synthetic_canary" and models.require_real_model:
             raise ValueError("synthetic canary cannot claim a real model")
         return cls(
