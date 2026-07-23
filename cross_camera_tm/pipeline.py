@@ -149,6 +149,10 @@ class CrossCameraPipeline:
         real_model: bool,
         manifest_path: Path | None = None,
     ) -> PipelineRunResult:
+        if phase2_enabled and not synthetic:
+            raise RuntimeError(
+                "PHASE2_NOT_IMPLEMENTED: non-synthetic Phase 2 is forbidden"
+            )
         trace: list[str] = []
         canonical = self.canonicalizer.canonicalize(image, metadata)
         trace.append("canonicalization")
