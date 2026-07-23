@@ -2,42 +2,36 @@
 
 This runbook implements the frozen requirements in `docs/CROSS_CAMERA_REQUIREMENT_BASELINE.md`.
 
-## 1. Tensor files
+## 1. Tensor contract
 
-All image artifacts are local `.pt` files containing either a `torch.Tensor` or `{"tensor": torch.Tensor}`.
+Image artifacts are local `.pt` files containing either a `torch.Tensor` or `{"tensor": torch.Tensor}`.
 
-Image shape must be `[1, 3, H, W]`. ROI/alignment masks use `[1, 1, H, W]`. Tensors must be finite. Images are non-negative BLC+WB linear RGB; metadata declares whether white-level normalization is still required.
+Required image contract:
 
-Manifest tensor hashes use `cross_camera_tm.contracts.canonical_tensor_sha256`, not the raw `.pt` file hash.
-
-## 2. Linear metadata JSON
-
-Each image has one strict metadata object:
-
-```json
-{
-  "sample_id": "iphone-0001",
-  "device": "iPhone",
-  "white_level": 65535.0,
-  "is_normalized": false,
-  "black_level_corrected": true,
-  "white_balanced": true,
-  "awb_gains_applied": [2.1, 1.0, 1.7],
-  "reference_awb_gains": null,
-  "awb_gains_comparable": false,
-  "ccm_to_common": null,
-  "exposure_time_s": 0.01,
-  "iso": 100.0,
-  "aperture": 1.8,
-  "reference_exposure_product": 0.3086419753,
-  "hdr_confidence": 0.9,
-  "metadata_complete": true
-}
+```text
+shape: [1, 3, H, W]
+dtype after load: float32
+values: finite and non-negative
+encoding: BLC + WB linear RGB
 ```
 
-Boolean fields must be JSON booleans, not strings.
+ROI/alignment masks use `[1, 1, H, W]`. Manifest hashes use `cross_camera_tm.contracts.canonical_tensor_sha256`, not the raw `.pt` file hash.
 
-Set `awb_gains_comparable=true` only when applied/reference gains share a valid coordinate definition. If sensor-RGB coordinates differ and no reliable CCM is available, metadata gains may describe or undo a known device operation, but must not create an unsupported cross-device gain ratio.
+## 2. Metadata contract
+
+Each image has a strict `LinearMetadata` JSON object. Boolean fields must be JSON booleans rather than strings.
+
+Formal binding rules:
+
+- source metadata device must contain `Samsung`;
+- calibration iPhone metadata device must contain `iPhone`;
+- calibration Samsung metadata device must contain `Samsung`;
+- source metadata `sample_id` must equal the manifest source `sample_id`;
+- every metadata `sample_id` must equal the corresponding tensor filename stem;
+- sample IDs and scene groups must be non-empty;
+- metadata sample IDs must be unique within their role.
+
+Set `awb_gains_comparable=true` only when applied/reference gains share a valid coordinate definition.
 
 ## 3. Samsung source manifest
 
@@ -58,11 +52,27 @@ Set `awb_gains_comparable=true` only when applied/reference gains share a valid 
 }
 ```
 
-At least ten independent Samsung source samples are required for teacher P75/P90 qualification. A larger held-out source set is preferred.
+Requirements:
+
+- at least ten source samples;
+- at least five independent source scene groups;
+- unique source sample IDs;
+- unique Samsung source image hashes;
+- finite non-negative Samsung input and GT;
+- Samsung input and GT shapes must match.
+
+Duplicating one source image under a different ID is rejected because it would distort the teacher qualification distribution.
 
 ## 4. Cross-device calibration manifest
 
-Exactly 50 pairs are required: 40 `development`, 10 `locked`. Locked scene groups must not occur in development.
+Exactly 50 pairs are required:
+
+```text
+40 development
+10 locked
+```
+
+Locked scene groups must not occur in development.
 
 ```json
 {
@@ -94,29 +104,35 @@ Exactly 50 pairs are required: 40 `development`, 10 `locked`. Locked scene group
 }
 ```
 
-The declared quality is only an upper bound. The supported CLI derives an effective quality from the numeric evidence and may downgrade it.
+Dataset-level independence rules:
 
-Frozen default evidence policy:
+- pair IDs are unique;
+- complete pair content signatures are unique;
+- development and locked iPhone hashes are disjoint;
+- development and locked Samsung hashes are disjoint;
+- development and locked GT hashes are disjoint;
+- exact content duplication under renamed IDs is rejected;
+- all tensors are finite, non-negative and share the declared canvas.
+
+## 5. Alignment evidence
+
+Declared levels:
 
 ```text
-ROI supervision:
-  overlap >= 0.50
-  valid_roi_fraction >= 0.30
-
-Low-frequency supervision:
-  overlap >= 0.70
-  valid_roi_fraction >= 0.50
-  forward_backward_consistency >= 0.80
-  residual_displacement_px <= 2.0
+scene_only
+roi
+low_frequency
 ```
 
-If low-frequency evidence fails but ROI evidence passes, the pair is downgraded to ROI. If ROI evidence also fails, it is downgraded to scene-only tone/statistics supervision. Numeric evidence never upgrades a weaker declared label.
+The label is only an upper bound. A frozen `AlignmentPolicy` checks overlap, valid ROI fraction, forward-backward consistency and residual displacement, and may downgrade:
 
-- `roi` requires `roi_mask`.
-- `low_frequency` requires both `roi_mask` and `alignment_mask`.
-- Approximate pairs never enable full-resolution pixel loss.
+```text
+low_frequency → roi → scene_only
+```
 
-## 5. Train Phase 1
+It never upgrades a weaker declaration. `roi` requires `roi_mask`; `low_frequency` requires both `roi_mask` and `alignment_mask`. All alignment thresholds must be finite.
+
+## 6. Train Phase 1
 
 ```bash
 PYTHONPATH=. python main/run_cross_camera_adaptation.py train-phase1 \
@@ -126,8 +142,6 @@ PYTHONPATH=. python main/run_cross_camera_adaptation.py train-phase1 \
   --output-dir outputs/cross_camera_phase1
 ```
 
-`train-phase1` in real mode always produces a real-data artifact. There is no CLI switch that can relabel it as synthetic.
-
 Outputs:
 
 ```text
@@ -135,21 +149,11 @@ phase1_adapter.pt
 phase1_training_report.json
 ```
 
-The saved schema-2 artifact binds:
+The authoritative training implementation is `cross_camera_tm.phase1_protocol.train_phase1`. `phase1_training.py` contains shared primitives only.
 
-- Samsung checkpoint SHA;
-- source and calibration manifest SHA;
-- feature schema and normalization;
-- canonicalization configuration and SHA;
-- alignment policy and SHA;
-- development calibration support geometry;
-- frozen maximum support distance;
-- frozen minimum Adapter parameter-bound margin;
-- validation report and evidence labels.
+Runtime support and minimum Adapter-margin thresholds are calibrated from the 40 development pairs only. The locked ten pairs do not set deployment thresholds.
 
-The support threshold is calibrated from leave-one-scene-group-out development distances. The Adapter margin threshold is calibrated from qualified calibration samples. Neither threshold can be widened at inference time.
-
-## 6. Re-evaluate locked calibration data
+## 7. Re-evaluate the locked calibration set
 
 ```bash
 PYTHONPATH=. python main/run_cross_camera_adaptation.py evaluate-phase1 \
@@ -159,15 +163,9 @@ PYTHONPATH=. python main/run_cross_camera_adaptation.py evaluate-phase1 \
   --output-dir outputs/cross_camera_phase1_eval
 ```
 
-Evaluation rejects:
+The command rejects synthetic artifacts, model/config/policy mismatch, a different calibration manifest and artifacts without real Phase-1 calibration acceptance.
 
-- a different Samsung checkpoint;
-- a different calibration manifest;
-- a different canonicalization configuration;
-- a different alignment policy;
-- an invalid or unsealed artifact.
-
-## 7. Run a real iPhone input
+## 8. Run a real iPhone input
 
 ```bash
 PYTHONPATH=. python main/run_cross_camera_adaptation.py real-run \
@@ -185,33 +183,25 @@ phase1_output.pt
 run_manifest.json
 ```
 
-Inference fails closed when:
+Inference fails closed when the artifact is synthetic or failed, provenance differs, input contracts are invalid, support distance is non-finite/outside support, or Adapter margin is non-finite/non-positive/below the frozen threshold.
 
-- the artifact did not pass locked Phase-1 acceptance;
-- the artifact is synthetic;
-- the Samsung checkpoint hash differs;
-- canonicalization or alignment-policy identity differs;
-- metadata/tensor contracts are invalid;
-- calibration-support distance exceeds the artifact-frozen threshold;
-- predicted Adapter parameters approach or cross the calibrated boundary threshold.
+## 9. Phase-2 boundary
 
-The run manifest separates evidence levels:
+Real Phase 2 is prohibited at both configuration and library API boundaries.
 
 ```text
-real_phase1_calibration_accepted
-real_source_replay_verified
-real_target_effectiveness_verified
+real config + phase2.enabled=true → PHASE2_NOT_IMPLEMENTED
+real config + pixel routing       → PIXEL_ROUTING_NOT_IMPLEMENTED
+CrossCameraPipeline.run(synthetic=False, phase2_enabled=True)
+                                  → PHASE2_NOT_IMPLEMENTED
 ```
 
-Passing the 40+10 calibration protocol can set only the first field. The latter two remain false until independent source replay and target holdout evaluations are actually executed.
+Synthetic canaries remain mechanical tests only and cannot establish real cross-device effectiveness.
 
-## 8. Phase-2 boundary
+## 10. Verification
 
-Real configuration rejects either of the following:
-
-```text
-phase2.enabled=true        -> PHASE2_NOT_IMPLEMENTED
-pixel_route_enabled=true   -> PIXEL_ROUTING_NOT_IMPLEMENTED
+```bash
+bash scripts/run_cross_camera_domain_adaptation_verification.sh
 ```
 
-Synthetic canaries may exercise experimental Phase-2 interfaces, but they cannot authorize real routing. `real-run` executes Phase 1 only and records `phase2_status=PHASE2_NOT_IMPLEMENTED`.
+CI additionally runs focused cross-camera tests, full repository unittest discovery, config validation and the Samsung checkpoint interface canary.
