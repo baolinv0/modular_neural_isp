@@ -62,21 +62,13 @@ All implementation-level findings from both external reviews have been remediate
 | Old leaking training function remains in source | Function removed from source; reload cannot restore it |
 | CI covers only cross-camera tests | Workflow now runs focused and full repository test discovery and retains both logs |
 
-## Verification evidence
-
-Code verification head:
+## Exact-head verification
 
 ```text
-f247f0c5e6968a001b3bd407bcfe955d1580441d
+HEAD: ba9f9df1457d07ef28c46f09306f53bd24f07fbb
+GitHub Actions run: 30011106271
+Result: PASS
 ```
-
-GitHub Actions run:
-
-```text
-30010621410: PASS
-```
-
-Results:
 
 ```text
 compileall: PASS
@@ -88,13 +80,6 @@ Samsung checkpoint interface canary: PASS
 
 ## Items intentionally not claimed
 
-Repository-only tests cannot establish:
-
-1. real 40-pair out-of-fold improvement prevalence;
-2. real ten-pair locked global/ROI/highlight improvement;
-3. independent Samsung source replay metrics;
-4. independent iPhone target good-case, failure and OOD behavior;
-5. whether Phase 2 should activate on real target data;
-6. complete Qwen/InternVL/Ovis/pixel pseudo-supervision behavior.
+Repository-only tests cannot establish real 40-pair out-of-fold improvement, real ten-pair locked improvement, independent source replay, independent iPhone target good-case/failure/OOD behavior, valid real Phase-2 activation, or complete Qwen/InternVL/Ovis/pixel pseudo-supervision behavior.
 
 These remain data-backed or separately scoped acceptance work, not synthetic PASS results.
