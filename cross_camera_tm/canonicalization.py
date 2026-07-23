@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import math
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from typing import Any
 
 import torch
 
@@ -28,6 +31,14 @@ class CanonicalizationConfig:
             raise ValueError("exposure scale bounds are invalid")
         if not 0 <= self.reliable_dark_threshold < self.highlight_threshold <= 1:
             raise ValueError("reliable/highlight thresholds are invalid")
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @property
+    def sha256(self) -> str:
+        payload = json.dumps(self.to_dict(), sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return hashlib.sha256(payload).hexdigest()
 
 
 class DeviceCanonicalizer:
