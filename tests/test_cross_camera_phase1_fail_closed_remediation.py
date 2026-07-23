@@ -14,7 +14,12 @@ from cross_camera_tm.phase1 import (
     TeacherMetricThreshold,
 )
 from cross_camera_tm.phase1_data import AlignmentEvidence
-from cross_camera_tm.phase1_protocol import Phase1Artifact, run_phase1_inference
+from cross_camera_tm.phase1_protocol import Phase1Artifact
+from cross_camera_tm.phase1_remediation import (
+    DEFAULT_ALIGNMENT_POLICY,
+    HardenedPhase1Artifact,
+    run_hardened_phase1_inference,
+)
 
 
 class IdentityTone(nn.Module):
@@ -53,13 +58,19 @@ def _profile() -> TeacherMetricProfile:
     )
 
 
-def _artifact(data_mode: str) -> Phase1Artifact:
+def _base_artifact(
+    data_mode: str,
+    *,
+    adapter: TargetCameraAdapter | None = None,
+    support_min: float = -10.0,
+    support_max: float = 10.0,
+) -> Phase1Artifact:
     return Phase1Artifact(
-        adapter=TargetCameraAdapter(14, 4),
+        adapter=adapter or TargetCameraAdapter(14, 4),
         feature_mean=torch.zeros(1, 14),
         feature_std=torch.ones(1, 14),
-        support_min=torch.full((1, 14), -10.0),
-        support_max=torch.full((1, 14), 10.0),
+        support_min=torch.full((1, 14), support_min),
+        support_max=torch.full((1, 14), support_max),
         samsung_model_sha256="a" * 64,
         source_manifest_sha256="b" * 64,
         calibration_manifest_sha256="c" * 64,
@@ -67,6 +78,36 @@ def _artifact(data_mode: str) -> Phase1Artifact:
         validation_report={"passed": True},
         teacher_profile=_profile(),
         data_mode=data_mode,
+    )
+
+
+def _artifact(
+    data_mode: str,
+    *,
+    adapter: TargetCameraAdapter | None = None,
+    support_min: float = -10.0,
+    support_max: float = 10.0,
+    max_support_distance: float = 100.0,
+    minimum_parameter_bound_margin: float = 0.0,
+    canonicalization: CanonicalizationConfig | None = None,
+) -> HardenedPhase1Artifact:
+    canonicalization = canonicalization or CanonicalizationConfig()
+    return HardenedPhase1Artifact(
+        base=_base_artifact(
+            data_mode,
+            adapter=adapter,
+            support_min=support_min,
+            support_max=support_max,
+        ),
+        canonicalization_config=canonicalization,
+        canonicalization_sha256=canonicalization.sha256,
+        alignment_policy=DEFAULT_ALIGNMENT_POLICY,
+        alignment_policy_sha256=DEFAULT_ALIGNMENT_POLICY.sha256,
+        max_support_distance=max_support_distance,
+        minimum_parameter_bound_margin=minimum_parameter_bound_margin,
+        real_phase1_calibration_accepted=data_mode == "real",
+        real_source_replay_verified=False,
+        real_target_effectiveness_verified=False,
     )
 
 
@@ -111,13 +152,13 @@ class Phase1FailClosedRemediationTests(unittest.TestCase):
                 "residual_displacement_px": 100.0,
             }
         )
-        self.assertIs(evidence.quality, AlignmentQuality.SCENE_ONLY)
-        self.assertEqual(evidence.enabled_losses, ("tone",))
+        effective = DEFAULT_ALIGNMENT_POLICY.effective_quality(evidence)
+        self.assertIs(effective, AlignmentQuality.SCENE_ONLY)
 
     def test_synthetic_artifact_cannot_run_real_inference(self):
         image = torch.full((1, 3, 8, 8), 0.3)
         with self.assertRaisesRegex(ValueError, "real Phase 1 artifact"):
-            run_phase1_inference(
+            run_hardened_phase1_inference(
                 image=image,
                 metadata=_metadata(),
                 frozen_tm=FrozenSamsungTM(IdentityTone()),
@@ -127,7 +168,7 @@ class Phase1FailClosedRemediationTests(unittest.TestCase):
 
     def test_real_calibration_acceptance_does_not_claim_target_effectiveness(self):
         image = torch.full((1, 3, 8, 8), 0.3)
-        _, manifest = run_phase1_inference(
+        _, manifest = run_hardened_phase1_inference(
             image=image,
             metadata=_metadata(),
             frozen_tm=FrozenSamsungTM(IdentityTone()),
@@ -138,6 +179,48 @@ class Phase1FailClosedRemediationTests(unittest.TestCase):
         self.assertFalse(manifest["real_source_replay_verified"])
         self.assertFalse(manifest["real_target_effectiveness_verified"])
         self.assertNotIn("real_data_effectiveness_verified", manifest)
+
+    def test_canonicalization_hash_mismatch_is_rejected(self):
+        image = torch.full((1, 3, 8, 8), 0.3)
+        different = CanonicalizationConfig(highlight_threshold=0.90)
+        with self.assertRaisesRegex(ValueError, "canonicalization configuration"):
+            run_hardened_phase1_inference(
+                image=image,
+                metadata=_metadata(),
+                frozen_tm=FrozenSamsungTM(IdentityTone()),
+                artifact=_artifact("real"),
+                canonicalizer=DeviceCanonicalizer(different),
+            )
+
+    def test_calibration_support_threshold_is_not_runtime_overridable(self):
+        image = torch.full((1, 3, 8, 8), 0.3)
+        with self.assertRaisesRegex(ValueError, "BLOCKED_OUTSIDE_CALIBRATION_SUPPORT"):
+            run_hardened_phase1_inference(
+                image=image,
+                metadata=_metadata(),
+                frozen_tm=FrozenSamsungTM(IdentityTone()),
+                artifact=_artifact(
+                    "real",
+                    support_min=0.0,
+                    support_max=0.0,
+                    max_support_distance=0.0,
+                ),
+                canonicalizer=DeviceCanonicalizer(CanonicalizationConfig()),
+            )
+
+    def test_adapter_boundary_saturation_blocks_output(self):
+        adapter = TargetCameraAdapter(14, 4)
+        with torch.no_grad():
+            adapter.head.bias[:12].fill_(100.0)
+        image = torch.full((1, 3, 8, 8), 0.3)
+        with self.assertRaisesRegex(ValueError, "BLOCKED_OUTSIDE_ADAPTER_SUPPORT"):
+            run_hardened_phase1_inference(
+                image=image,
+                metadata=_metadata(),
+                frozen_tm=FrozenSamsungTM(IdentityTone()),
+                artifact=_artifact("real", adapter=adapter),
+                canonicalizer=DeviceCanonicalizer(CanonicalizationConfig()),
+            )
 
     def test_only_phase1_protocol_exports_train_phase1(self):
         self.assertFalse(hasattr(legacy_training, "train_phase1"))
