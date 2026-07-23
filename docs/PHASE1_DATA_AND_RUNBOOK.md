@@ -4,17 +4,7 @@ This runbook implements the frozen requirements in `docs/CROSS_CAMERA_REQUIREMEN
 
 ## 1. Tensor files
 
-All image artifacts are local `.pt` files containing either:
-
-```python
-torch.Tensor
-```
-
-or:
-
-```python
-{"tensor": torch.Tensor}
-```
+All image artifacts are local `.pt` files containing either a `torch.Tensor` or `{"tensor": torch.Tensor}`.
 
 Image shape must be `[1, 3, H, W]`. ROI/alignment masks use `[1, 1, H, W]`. Tensors must be finite. Images are non-negative BLC+WB linear RGB; metadata declares whether white-level normalization is still required.
 
@@ -47,7 +37,7 @@ Each image has one strict metadata object:
 
 Boolean fields must be JSON booleans, not strings.
 
-Set `awb_gains_comparable=true` only when applied/reference gains share a valid coordinate definition. If sensor-RGB coordinates differ and no reliable CCM is available, use the metadata gains only to describe/undo the known device operation; do not insert a cross-device gain ratio.
+Set `awb_gains_comparable=true` only when applied/reference gains share a valid coordinate definition. If sensor-RGB coordinates differ and no reliable CCM is available, metadata gains may describe or undo a known device operation, but must not create an unsupported cross-device gain ratio.
 
 ## 3. Samsung source manifest
 
@@ -104,17 +94,27 @@ Exactly 50 pairs are required: 40 `development`, 10 `locked`. Locked scene group
 }
 ```
 
-Legal alignment levels:
+The declared quality is only an upper bound. The supported CLI derives an effective quality from the numeric evidence and may downgrade it.
+
+Frozen default evidence policy:
 
 ```text
-scene_only
-roi
-low_frequency
+ROI supervision:
+  overlap >= 0.50
+  valid_roi_fraction >= 0.30
+
+Low-frequency supervision:
+  overlap >= 0.70
+  valid_roi_fraction >= 0.50
+  forward_backward_consistency >= 0.80
+  residual_displacement_px <= 2.0
 ```
+
+If low-frequency evidence fails but ROI evidence passes, the pair is downgraded to ROI. If ROI evidence also fails, it is downgraded to scene-only tone/statistics supervision. Numeric evidence never upgrades a weaker declared label.
 
 - `roi` requires `roi_mask`.
 - `low_frequency` requires both `roi_mask` and `alignment_mask`.
-- All images must already be resampled/warped to the same tensor canvas. The loss level, not a claimed pixel threshold, determines how that canvas may be used.
+- Approximate pairs never enable full-resolution pixel loss.
 
 ## 5. Train Phase 1
 
@@ -126,6 +126,8 @@ PYTHONPATH=. python main/run_cross_camera_adaptation.py train-phase1 \
   --output-dir outputs/cross_camera_phase1
 ```
 
+`train-phase1` in real mode always produces a real-data artifact. There is no CLI switch that can relabel it as synthetic.
+
 Outputs:
 
 ```text
@@ -133,7 +135,19 @@ phase1_adapter.pt
 phase1_training_report.json
 ```
 
-Exit status `0` means the mechanical and acceptance conditions encoded by the frozen protocol passed. It does not replace human inspection of real image quality.
+The saved schema-2 artifact binds:
+
+- Samsung checkpoint SHA;
+- source and calibration manifest SHA;
+- feature schema and normalization;
+- canonicalization configuration and SHA;
+- alignment policy and SHA;
+- development calibration support geometry;
+- frozen maximum support distance;
+- frozen minimum Adapter parameter-bound margin;
+- validation report and evidence labels.
+
+The support threshold is calibrated from leave-one-scene-group-out development distances. The Adapter margin threshold is calibrated from qualified calibration samples. Neither threshold can be widened at inference time.
 
 ## 6. Re-evaluate locked calibration data
 
@@ -145,7 +159,13 @@ PYTHONPATH=. python main/run_cross_camera_adaptation.py evaluate-phase1 \
   --output-dir outputs/cross_camera_phase1_eval
 ```
 
-This command reloads the versioned artifact and re-runs the locked-pair observable-output evaluation.
+Evaluation rejects:
+
+- a different Samsung checkpoint;
+- a different calibration manifest;
+- a different canonicalization configuration;
+- a different alignment policy;
+- an invalid or unsealed artifact.
 
 ## 7. Run a real iPhone input
 
@@ -168,8 +188,30 @@ run_manifest.json
 Inference fails closed when:
 
 - the artifact did not pass locked Phase-1 acceptance;
+- the artifact is synthetic;
 - the Samsung checkpoint hash differs;
+- canonicalization or alignment-policy identity differs;
 - metadata/tensor contracts are invalid;
-- the input lies beyond the configured calibration-support distance.
+- calibration-support distance exceeds the artifact-frozen threshold;
+- predicted Adapter parameters approach or cross the calibrated boundary threshold.
 
-`real-run` executes Phase 1 only. Phase 2 remains blocked and is recorded as such in the run manifest.
+The run manifest separates evidence levels:
+
+```text
+real_phase1_calibration_accepted
+real_source_replay_verified
+real_target_effectiveness_verified
+```
+
+Passing the 40+10 calibration protocol can set only the first field. The latter two remain false until independent source replay and target holdout evaluations are actually executed.
+
+## 8. Phase-2 boundary
+
+Real configuration rejects either of the following:
+
+```text
+phase2.enabled=true        -> PHASE2_NOT_IMPLEMENTED
+pixel_route_enabled=true   -> PIXEL_ROUTING_NOT_IMPLEMENTED
+```
+
+Synthetic canaries may exercise experimental Phase-2 interfaces, but they cannot authorize real routing. `real-run` executes Phase 1 only and records `phase2_status=PHASE2_NOT_IMPLEMENTED`.
