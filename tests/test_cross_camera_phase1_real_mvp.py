@@ -158,8 +158,9 @@ class Phase1RealMVPTests(unittest.TestCase):
         frozen_tm = FrozenSamsungTM(TinyTone())
         canonicalizer = DeviceCanonicalizer()
         config = Phase1TrainingConfig(
-            solver_steps=6,
+            solver_steps=12,
             solver_learning_rate=0.08,
+            hidden_dim=1,
             bootstrap_samples=200,
             seed=9,
             data_mode="synthetic",
