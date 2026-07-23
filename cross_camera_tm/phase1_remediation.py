@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -41,10 +42,11 @@ class AlignmentPolicy:
             self.lowfreq_valid_fraction_min,
             self.lowfreq_forward_backward_min,
         )
-        if any(not 0.0 <= float(value) <= 1.0 for value in unit_values):
-            raise ValueError("alignment policy fractions must lie in [0,1]")
-        if self.lowfreq_displacement_max_px < 0:
-            raise ValueError("alignment displacement threshold must be non-negative")
+        if any(not math.isfinite(float(value)) or not 0.0 <= float(value) <= 1.0 for value in unit_values):
+            raise ValueError("alignment policy fractions must be finite and lie in [0,1]")
+        displacement = float(self.lowfreq_displacement_max_px)
+        if not math.isfinite(displacement) or displacement < 0:
+            raise ValueError("alignment displacement threshold must be finite and non-negative")
         if self.lowfreq_overlap_min < self.roi_overlap_min:
             raise ValueError("low-frequency overlap threshold cannot be weaker than ROI")
         if self.lowfreq_valid_fraction_min < self.roi_valid_fraction_min:
@@ -205,7 +207,10 @@ def _calibrated_support_threshold(
     if not distances:
         raise ValueError("support calibration requires multiple development scene groups")
     values = torch.cat(distances)
-    return float(max(0.05, torch.quantile(values, 0.95).item() + 0.05))
+    threshold = float(max(0.05, torch.quantile(values, 0.95).item() + 0.05))
+    if not math.isfinite(threshold):
+        raise ValueError("support calibration produced a non-finite threshold")
+    return threshold
 
 
 def _calibrated_margin_threshold(
@@ -214,8 +219,11 @@ def _calibrated_margin_threshold(
     frozen_tm: FrozenSamsungTM,
     artifact: core.Phase1Artifact,
 ) -> float:
+    development = [item for item in examples if item.split == "development"]
+    if len(development) != 40:
+        raise ValueError("parameter-margin calibration requires the frozen 40-pair development set")
     qualifier = TeacherQualifier(artifact.teacher_profile)
-    prepared = core._prepare_pairs(examples, canonicalizer, frozen_tm, qualifier)
+    prepared = core._prepare_pairs(development, canonicalizer, frozen_tm, qualifier)
     eligible = [item for item in prepared if item.teacher_weight > 0.0]
     _, margins = core._evaluate_items(
         eligible,
@@ -224,10 +232,16 @@ def _calibrated_margin_threshold(
         artifact.feature_std,
         frozen_tm,
     )
-    positive = torch.tensor([value for value in margins if value > 0.0], dtype=torch.float64)
+    positive = torch.tensor(
+        [value for value in margins if math.isfinite(float(value)) and value > 0.0],
+        dtype=torch.float64,
+    )
     if positive.numel() < 8:
         raise ValueError("parameter-margin calibration has insufficient qualified samples")
-    return float(max(0.0, torch.quantile(positive, 0.05).item() - 0.05))
+    threshold = float(max(0.0, torch.quantile(positive, 0.05).item() - 0.05))
+    if not math.isfinite(threshold):
+        raise ValueError("parameter-margin calibration produced a non-finite threshold")
+    return threshold
 
 
 def seal_phase1_artifact(
@@ -366,7 +380,12 @@ def load_hardened_phase1_artifact(
         raise ValueError("alignment policy does not match the Phase 1 artifact")
     max_support_distance = float(payload["max_support_distance"])
     minimum_margin = float(payload["minimum_parameter_bound_margin"])
-    if max_support_distance < 0 or minimum_margin < 0:
+    if (
+        not math.isfinite(max_support_distance)
+        or not math.isfinite(minimum_margin)
+        or max_support_distance < 0
+        or minimum_margin < 0
+    ):
         raise ValueError("hardened Phase 1 thresholds are invalid")
     return HardenedPhase1Artifact(
         base=_base_artifact_from_payload(payload, expected_model_sha256=expected_model_sha256),
@@ -404,9 +423,9 @@ def run_hardened_phase1_inference(
     )
     support_distance = float(manifest["calibration_support_distance"])
     margin = float(manifest["adapter_parameter_bound_margin"])
-    if support_distance > artifact.max_support_distance:
+    if not math.isfinite(support_distance) or support_distance > artifact.max_support_distance:
         raise ValueError("BLOCKED_OUTSIDE_CALIBRATION_SUPPORT")
-    if margin <= 0.0 or margin < artifact.minimum_parameter_bound_margin:
+    if not math.isfinite(margin) or margin <= 0.0 or margin < artifact.minimum_parameter_bound_margin:
         raise ValueError("BLOCKED_OUTSIDE_ADAPTER_SUPPORT")
     manifest.pop("real_data_effectiveness_verified", None)
     manifest.update(
@@ -431,6 +450,8 @@ def evaluate_hardened_phase1_artifact(
     artifact: HardenedPhase1Artifact,
     canonicalizer: DeviceCanonicalizer,
 ) -> dict[str, Any]:
+    if artifact.data_mode != "real":
+        raise ValueError("evaluate-phase1 requires a real Phase 1 artifact")
     if canonicalizer.config.sha256 != artifact.canonicalization_sha256:
         raise ValueError("canonicalization configuration does not match the Phase 1 artifact")
     report = core.evaluate_phase1_artifact(
