@@ -9,16 +9,18 @@ FULL_PGT_NOT_IMPLEMENTED
 PHASE2_BLOCKED
 ```
 
-The Phase-1 implementation now includes the fail-closed and provenance remediation identified by the external review of head `89e0aa942ec5d41e4a4a950001c5400cb5964c1a`.
+The Phase-1 implementation now includes both rounds of external fail-closed, provenance and holdout-independence remediation.
 
-Real cross-device effectiveness is not declared because the actual captured 50-pair calibration set and independent source/target holdouts were not available in this repository session.
+Real cross-device effectiveness is not declared because the captured 50-pair dataset and independent source/target holdouts were not executed in this repository session.
 
-## Repository baseline
+## Repository
 
-- Repository: `baolinv0/modular_neural_isp`
-- Branch: `feature/cross-camera-domain-adaptation-v2`
-- Integration base: `feature/modular-capture-pipeline@efbfdfea87385254cb36e23354fa9b7f1ae2e4ce`
-- Draft PR: `#6 Cross-camera Phase 1 observable-output remediation`
+```text
+Repository: baolinv0/modular_neural_isp
+Branch: feature/cross-camera-domain-adaptation-v2
+Base: feature/modular-capture-pipeline@efbfdfea87385254cb36e23354fa9b7f1ae2e4ce
+Draft PR: #6
+```
 
 ## Frozen objective
 
@@ -33,11 +35,11 @@ The Adapter does not reconstruct an unobservable Samsung sensor-linear target. S
 ## Implemented Phase-1 chain
 
 ```text
-source/calibration manifest loading
+strict source/calibration manifests
 → numeric alignment-evidence downgrade
 → config-bound device canonicalization
 → Samsung teacher qualification
-→ fold-local pair-parameter refinement through frozen Samsung TM
+→ fold-local pair refinement through frozen Samsung TM
 → fold-local PCA + teacher-weighted ridge predictor
 → locked-holdout acceptance
 → schema-2 hardened artifact
@@ -45,132 +47,115 @@ source/calibration manifest loading
 → fail-closed real-run
 ```
 
-## External review remediation
+## Second-review remediation
 
-### 1. Phase-2 scope isolation
+### API-level Phase-2 isolation
 
-Real configuration now rejects:
-
-```text
-phase2.enabled=true       → PHASE2_NOT_IMPLEMENTED
-pixel_route_enabled=true  → PIXEL_ROUTING_NOT_IMPLEMENTED
-```
-
-Existing L1/L2/L3/VLM interfaces remain experimental synthetic-only interfaces. They are not treated as a delivered Open-Source Pseudo-Supervision Pipeline.
-
-### 2. Honest evidence labels
-
-The hardened run manifest no longer derives a broad real-effectiveness claim from calibration acceptance.
-
-It records independent fields:
+`CrossCameraPipeline.run()` rejects every non-synthetic Phase-2 request before candidate generation:
 
 ```text
-real_phase1_calibration_accepted
-real_source_replay_verified
-real_target_effectiveness_verified
+phase2_enabled=true + synthetic=false
+→ PHASE2_NOT_IMPLEMENTED
 ```
 
-Only the first can be set by the frozen 40+10 calibration protocol. The other two remain false until their corresponding evaluations are actually executed.
+Real config and pixel-routing guards remain active. Experimental Phase-2 interfaces cannot emit real parameter, range, preference or pixel supervision.
 
-### 3. Canonicalization provenance
+### Holdout-independent runtime policy
 
-Train, evaluate and real inference all construct:
+Both runtime thresholds are calibrated from the 40 development pairs only:
 
-```python
-DeviceCanonicalizer(config.canonicalization)
-```
+- maximum calibration-support distance;
+- minimum Adapter parameter-bound margin.
 
-Artifact schema 2 stores the canonicalization payload and SHA. Loading and inference reject a mismatch between runtime config and the artifact.
+The ten locked pairs evaluate the frozen system but do not set deployment policy.
 
-### 4. Real artifact identity
+### Finite-value enforcement
 
-- `train-phase1` in real mode always writes `data_mode=real`.
-- The old CLI data-mode override was removed.
-- `real-run` rejects synthetic artifacts.
-- Samsung model and calibration manifest identities remain fail-closed.
+The following reject NaN/Inf and invalid negatives:
 
-### 5. Frozen calibration support
+- artifact support threshold;
+- artifact minimum parameter margin;
+- alignment displacement threshold;
+- runtime support distance;
+- runtime Adapter margin.
 
-The maximum support distance is calibrated from leave-one-scene-group-out development feature distances and stored in the artifact.
+### Real evaluation identity
 
-The old runtime `--max-support-distance` override was removed. Operators cannot widen the frozen support boundary.
-
-### 6. Adapter parameter support
-
-The artifact stores a calibrated minimum parameter-bound margin. Inference rejects:
+`evaluate-phase1` requires:
 
 ```text
-margin <= 0
-or
-margin < artifact.minimum_parameter_bound_margin
+artifact.data_mode == real
+real_phase1_calibration_accepted == true
 ```
 
-A saturated prediction cannot silently produce a formal output.
+A sealed synthetic artifact cannot be presented as a real evaluation result.
 
-### 7. Alignment evidence
+### Strict formal data contracts
 
-The manifest quality label is only an upper bound. A frozen numeric policy checks overlap, valid ROI coverage, forward-backward consistency and residual displacement.
+Source loading enforces:
 
-Unsupported low-frequency claims are downgraded to ROI or scene-only supervision. Numeric evidence never upgrades a weaker declaration.
+- Samsung device role;
+- metadata/sample/tensor binding;
+- non-empty and unique IDs;
+- finite non-negative tensors;
+- unique Samsung source content;
+- minimum source scene diversity.
 
-### 8. Single supported training entry
+Calibration loading enforces:
 
-`phase1_protocol.train_phase1` is the authoritative supported training path. The obsolete pre-fold target-fitting symbol is removed from the public package module namespace so callers cannot silently select the leaking implementation.
+- iPhone/Samsung device roles;
+- metadata/tensor binding;
+- unique pair and metadata IDs;
+- finite non-negative tensors;
+- unique pair content signatures;
+- development/locked scene and exact-content disjointness.
 
-## Hardened artifact contents
+### Single training implementation
 
-Schema 2 binds:
+The obsolete leaking `phase1_training.train_phase1` function has been removed from source. `phase1_training.py` contains shared primitives and artifact operations only. The sole authoritative training implementation is:
 
-- Samsung checkpoint SHA;
-- source manifest SHA;
-- calibration manifest SHA;
-- feature schema and normalization;
-- Adapter state;
-- training and locked validation evidence;
-- canonicalization payload and SHA;
-- alignment policy and SHA;
-- calibration support geometry;
-- maximum support distance;
-- minimum Adapter parameter-bound margin;
-- separated real-evidence labels.
+```text
+phase1_protocol.train_phase1
+```
 
-## Tests added
-
-New regression coverage verifies:
-
-- real Phase 2 and pixel routing are rejected;
-- weak numeric alignment evidence is downgraded;
-- synthetic artifacts cannot enter real inference;
-- calibration acceptance does not claim target effectiveness;
-- canonicalization mismatch is rejected;
-- support boundary cannot be overridden;
-- Adapter saturation blocks output;
-- the obsolete public training entry is unavailable;
-- schema-1 training output is sealed, reloaded and executed as a hash-bound schema-2 artifact.
+Reload, IDE discovery and static analysis can no longer recover a second training path.
 
 ## Verification
 
-Latest implementation verification before this report update:
+Code verification head:
 
 ```text
-GitHub Actions run: 29985795562
-Head: a8b8fb2bfdc3bdcd224a9130d8e784ac202ef1e3
+f247f0c5e6968a001b3bd407bcfe955d1580441d
+```
+
+GitHub Actions run:
+
+```text
+30010621410: PASS
+```
+
+Evidence:
+
+```text
 compileall: PASS
-cross-camera tests: 57 PASS
-configuration validation: PASS
+focused cross-camera tests: 66 PASS
+full repository tests: 97 PASS
+synthetic/default config validation: PASS
+real example config validation: PASS
 Samsung checkpoint strict load/forward/frozen-gradient/input-gradient canary: PASS
 ```
 
-The workflow retained the complete unittest log as an artifact.
+Workflow artifact `cross-camera-test-logs` retains both complete unittest logs.
 
-## Remaining evidence limitation
+## Evidence boundary
 
-The repository is code-ready for the frozen real-data protocol, but it has not executed the actual captured data. Therefore none of the following are claimed:
+The repository is ready to execute the frozen real-data protocol, but it has not established:
 
-- real target improvement;
-- independent source replay verification;
-- target good-case/OOD safety;
-- Phase-2 activation validity;
+- real 40-pair out-of-fold prevalence;
+- real ten-pair locked global/ROI/highlight improvement;
+- independent Samsung source replay metrics;
+- independent iPhone good-case/failure/OOD behavior;
+- valid activation of real Phase 2;
 - complete IQA-PGT/VLM/pixel pseudo-supervision delivery.
 
-The next valid action is to prepare the actual source/calibration manifests, run the frozen 40+10 protocol once, and preserve all outputs without changing capacity, features, losses or thresholds after the locked set is opened.
+The next valid action is an independent Reviewer re-verification of the exact branch head. Only after Reviewer PASS should the frozen 40+10 experiment or final Evaluator begin.
