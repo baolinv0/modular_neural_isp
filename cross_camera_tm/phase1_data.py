@@ -48,6 +48,13 @@ def _strict_mapping(payload: Mapping[str, Any], expected: set[str], name: str) -
         raise ValueError(f"missing {name} fields: " + ",".join(missing))
 
 
+def _nonempty(value: Any, name: str) -> str:
+    result = str(value).strip()
+    if not result:
+        raise ValueError(f"{name} must be non-empty")
+    return result
+
+
 def _unit_interval(value: Any, name: str) -> float:
     result = float(value)
     if not math.isfinite(result) or not 0.0 <= result <= 1.0:
@@ -60,6 +67,16 @@ def _nonnegative(value: Any, name: str) -> float:
     if not math.isfinite(result) or result < 0.0:
         raise ValueError(f"{name} must be finite and non-negative")
     return result
+
+
+def _require_device(metadata: LinearMetadata, role: str) -> None:
+    if role.lower() not in metadata.device.lower():
+        raise ValueError(f"{role} metadata device role is invalid")
+
+
+def _require_metadata_file_binding(metadata: LinearMetadata, tensor_path: Path, name: str) -> None:
+    if metadata.sample_id != tensor_path.stem:
+        raise ValueError(f"{name} metadata sample_id must match tensor filename stem")
 
 
 @dataclass(frozen=True)
@@ -112,6 +129,20 @@ class Phase1SourceExample:
     samsung_gt: torch.Tensor
     metadata: LinearMetadata
 
+    def __post_init__(self) -> None:
+        _nonempty(self.sample_id, "source sample_id")
+        _nonempty(self.scene_group, "source scene_group")
+        if self.metadata.sample_id != self.sample_id:
+            raise ValueError("source metadata sample_id must match source sample_id")
+        _require_device(self.metadata, "Samsung")
+        images = (self.samsung_image, self.samsung_gt)
+        if any(image.ndim != 4 or image.shape[0] != 1 or image.shape[1] != 3 for image in images):
+            raise ValueError("source images must have shape [1,3,H,W]")
+        if any(not torch.isfinite(image).all() or image.min().item() < 0 for image in images):
+            raise ValueError("source images must contain finite non-negative linear RGB")
+        if self.samsung_image.shape != self.samsung_gt.shape:
+            raise ValueError("source Samsung input and GT shapes must match")
+
 
 @dataclass(frozen=True)
 class Phase1CalibrationExample:
@@ -128,13 +159,17 @@ class Phase1CalibrationExample:
     alignment_mask: torch.Tensor | None = None
 
     def __post_init__(self) -> None:
+        _nonempty(self.pair_id, "calibration pair_id")
+        _nonempty(self.scene_group, "calibration scene_group")
         if self.split not in {"development", "locked"}:
             raise ValueError("split must be development or locked")
+        _require_device(self.iphone_metadata, "iPhone")
+        _require_device(self.samsung_metadata, "Samsung")
         images = (self.iphone_image, self.samsung_image, self.samsung_gt)
         if any(image.ndim != 4 or image.shape[0] != 1 or image.shape[1] != 3 for image in images):
             raise ValueError("calibration images must have shape [1,3,H,W]")
-        if any(not torch.isfinite(image).all() for image in images):
-            raise ValueError("calibration images must be finite")
+        if any(not torch.isfinite(image).all() or image.min().item() < 0 for image in images):
+            raise ValueError("calibration images must contain finite non-negative linear RGB")
         if self.samsung_image.shape != self.samsung_gt.shape:
             raise ValueError("Samsung input and GT must share shape")
         if self.iphone_image.shape != self.samsung_image.shape:
@@ -207,8 +242,8 @@ def _load_tensor(path: Path, name: str) -> torch.Tensor:
         tensor = tensor.unsqueeze(0)
     if tensor.ndim != 4 or tensor.shape[0] != 1 or tensor.shape[1] not in {1, 3}:
         raise ValueError(f"{name} tensor shape is invalid")
-    if not torch.isfinite(tensor).all():
-        raise ValueError(f"{name} tensor must be finite")
+    if not torch.isfinite(tensor).all() or tensor.min().item() < 0:
+        raise ValueError(f"{name} tensor must contain finite non-negative values")
     return tensor
 
 
@@ -228,9 +263,11 @@ def _load_metadata(path: Path) -> LinearMetadata:
     return LinearMetadata.from_mapping(payload)
 
 
-def _verify_tensor_hash(tensor: torch.Tensor, claimed: Any, name: str) -> None:
-    if str(claimed) != canonical_tensor_sha256(tensor):
+def _verify_tensor_hash(tensor: torch.Tensor, claimed: Any, name: str) -> str:
+    actual = canonical_tensor_sha256(tensor)
+    if str(claimed) != actual:
         raise ValueError(f"{name} hash does not match canonical tensor bytes")
+    return actual
 
 
 def load_source_manifest(path: Path | str) -> tuple[Phase1SourceExample, ...]:
@@ -243,6 +280,9 @@ def load_source_manifest(path: Path | str) -> tuple[Phase1SourceExample, ...]:
         raise ValueError("source manifest schema is invalid")
     base = manifest_path.parent
     result = []
+    sample_ids: set[str] = set()
+    metadata_ids: set[str] = set()
+    image_hashes: set[str] = set()
     fields = {
         "sample_id",
         "scene_group",
@@ -256,17 +296,31 @@ def load_source_manifest(path: Path | str) -> tuple[Phase1SourceExample, ...]:
         if not isinstance(row, Mapping):
             raise ValueError("source sample must be an object")
         _strict_mapping(row, fields, "source sample")
-        image = _load_tensor(_resolve(base, row["samsung_tensor"], "samsung_tensor"), "samsung_tensor")
+        sample_id = _nonempty(row["sample_id"], "source sample_id")
+        scene_group = _nonempty(row["scene_group"], "source scene_group")
+        samsung_path = _resolve(base, row["samsung_tensor"], "samsung_tensor")
+        image = _load_tensor(samsung_path, "samsung_tensor")
         gt = _load_tensor(_resolve(base, row["samsung_gt_tensor"], "samsung_gt_tensor"), "samsung_gt_tensor")
         metadata = _load_metadata(_resolve(base, row["metadata"], "metadata"))
+        _require_device(metadata, "Samsung")
+        if metadata.sample_id != sample_id:
+            raise ValueError("source metadata sample_id must match source sample_id")
+        _require_metadata_file_binding(metadata, samsung_path, "source")
         if image.shape != gt.shape:
             raise ValueError("source Samsung input and GT shapes must match")
-        _verify_tensor_hash(image, row["samsung_sha256"], "samsung")
+        image_hash = _verify_tensor_hash(image, row["samsung_sha256"], "samsung")
         _verify_tensor_hash(gt, row["gt_sha256"], "GT")
+        if sample_id in sample_ids or metadata.sample_id in metadata_ids:
+            raise ValueError("source sample identifiers must be unique")
+        if image_hash in image_hashes:
+            raise ValueError("source manifest contains duplicate Samsung content")
+        sample_ids.add(sample_id)
+        metadata_ids.add(metadata.sample_id)
+        image_hashes.add(image_hash)
         result.append(
             Phase1SourceExample(
-                sample_id=str(row["sample_id"]),
-                scene_group=str(row["scene_group"]),
+                sample_id=sample_id,
+                scene_group=scene_group,
                 samsung_image=image,
                 samsung_gt=gt,
                 metadata=metadata,
@@ -274,6 +328,8 @@ def load_source_manifest(path: Path | str) -> tuple[Phase1SourceExample, ...]:
         )
     if len(result) < 10:
         raise ValueError("teacher qualification requires at least ten independent Samsung source samples")
+    if len({item.scene_group for item in result}) < 5:
+        raise ValueError("teacher qualification requires at least five independent source scene groups")
     return tuple(result)
 
 
@@ -287,6 +343,13 @@ def load_calibration_manifest(path: Path | str) -> tuple[Phase1CalibrationExampl
         raise ValueError("calibration manifest schema is invalid")
     base = manifest_path.parent
     result = []
+    role_hashes: dict[str, dict[str, set[str]]] = {
+        "development": {"iphone": set(), "samsung": set(), "gt": set()},
+        "locked": {"iphone": set(), "samsung": set(), "gt": set()},
+    }
+    pair_signatures: set[tuple[str, str, str]] = set()
+    iphone_metadata_ids: set[str] = set()
+    samsung_metadata_ids: set[str] = set()
     fields = {
         "pair_id",
         "scene_group",
@@ -307,11 +370,22 @@ def load_calibration_manifest(path: Path | str) -> tuple[Phase1CalibrationExampl
         if not isinstance(row, Mapping):
             raise ValueError("calibration pair must be an object")
         _strict_mapping(row, fields, "calibration pair")
-        iphone = _load_tensor(_resolve(base, row["iphone_tensor"], "iphone_tensor"), "iphone_tensor")
-        samsung = _load_tensor(_resolve(base, row["samsung_tensor"], "samsung_tensor"), "samsung_tensor")
+        pair_id = _nonempty(row["pair_id"], "calibration pair_id")
+        scene_group = _nonempty(row["scene_group"], "calibration scene_group")
+        split = str(row["split"])
+        if split not in {"development", "locked"}:
+            raise ValueError("calibration split must be development or locked")
+        iphone_path = _resolve(base, row["iphone_tensor"], "iphone_tensor")
+        samsung_path = _resolve(base, row["samsung_tensor"], "samsung_tensor")
+        iphone = _load_tensor(iphone_path, "iphone_tensor")
+        samsung = _load_tensor(samsung_path, "samsung_tensor")
         gt = _load_tensor(_resolve(base, row["samsung_gt_tensor"], "samsung_gt_tensor"), "samsung_gt_tensor")
         iphone_metadata = _load_metadata(_resolve(base, row["iphone_metadata"], "iphone_metadata"))
         samsung_metadata = _load_metadata(_resolve(base, row["samsung_metadata"], "samsung_metadata"))
+        _require_device(iphone_metadata, "iPhone")
+        _require_device(samsung_metadata, "Samsung")
+        _require_metadata_file_binding(iphone_metadata, iphone_path, "iPhone")
+        _require_metadata_file_binding(samsung_metadata, samsung_path, "Samsung")
         alignment = AlignmentEvidence.from_mapping(row["alignment"])
         roi_mask = None if row["roi_mask"] is None else _load_tensor(_resolve(base, row["roi_mask"], "roi_mask"), "roi_mask")
         alignment_mask = (
@@ -323,14 +397,25 @@ def load_calibration_manifest(path: Path | str) -> tuple[Phase1CalibrationExampl
             roi_mask = roi_mask[:, :1].bool()
         if alignment_mask is not None:
             alignment_mask = alignment_mask[:, :1].bool()
-        _verify_tensor_hash(iphone, row["iphone_sha256"], "iPhone")
-        _verify_tensor_hash(samsung, row["samsung_sha256"], "Samsung")
-        _verify_tensor_hash(gt, row["gt_sha256"], "GT")
+        iphone_hash = _verify_tensor_hash(iphone, row["iphone_sha256"], "iPhone")
+        samsung_hash = _verify_tensor_hash(samsung, row["samsung_sha256"], "Samsung")
+        gt_hash = _verify_tensor_hash(gt, row["gt_sha256"], "GT")
+        signature = (iphone_hash, samsung_hash, gt_hash)
+        if signature in pair_signatures:
+            raise ValueError("calibration manifest contains a duplicate pair content signature")
+        if iphone_metadata.sample_id in iphone_metadata_ids or samsung_metadata.sample_id in samsung_metadata_ids:
+            raise ValueError("calibration metadata sample identifiers must be unique")
+        pair_signatures.add(signature)
+        iphone_metadata_ids.add(iphone_metadata.sample_id)
+        samsung_metadata_ids.add(samsung_metadata.sample_id)
+        role_hashes[split]["iphone"].add(iphone_hash)
+        role_hashes[split]["samsung"].add(samsung_hash)
+        role_hashes[split]["gt"].add(gt_hash)
         result.append(
             Phase1CalibrationExample(
-                pair_id=str(row["pair_id"]),
-                scene_group=str(row["scene_group"]),
-                split=str(row["split"]),
+                pair_id=pair_id,
+                scene_group=scene_group,
+                split=split,
                 iphone_image=iphone,
                 samsung_image=samsung,
                 samsung_gt=gt,
@@ -353,6 +438,9 @@ def load_calibration_manifest(path: Path | str) -> tuple[Phase1CalibrationExampl
     locked_groups = {item.scene_group for item in result if item.split == "locked"}
     if development_groups & locked_groups:
         raise ValueError("locked calibration scene groups must be unseen during development")
+    for role in ("iphone", "samsung", "gt"):
+        if role_hashes["development"][role] & role_hashes["locked"][role]:
+            raise ValueError(f"development and locked calibration {role} content must be disjoint")
     build_group_folds(result, folds=5)
     return tuple(result)
 
