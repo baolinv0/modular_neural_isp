@@ -7,8 +7,9 @@ on:
   pull_request:
     paths:
       - 'cross_camera_tm/**'
-      - 'tests/test_cross_camera_*.py'
+      - 'tests/**'
       - 'configs/cross_camera_tm_v2*.yaml'
+      - 'scripts/**'
       - '.github/workflows/cross-camera-phase1.yml'
 
 jobs:
@@ -30,17 +31,24 @@ jobs:
           python -m pip install numpy==1.26.4 pyyaml==6.0.2 opencv-contrib-python-headless==4.11.0.86 scipy==1.13.1 pillow==10.4.0 tifffile==2024.8.30
       - name: Compile
         run: python -m compileall -q cross_camera_tm main tests scripts
-      - name: Cross-camera tests
+      - name: Focused cross-camera tests
         shell: bash
         run: |
           set -o pipefail
           python -m unittest discover -s tests -p 'test_cross_camera_*.py' -v 2>&1 | tee cross-camera-tests.log
-      - name: Upload test log
+      - name: Full repository regression
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee full-repository-tests.log
+      - name: Upload test logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cross-camera-test-log
-          path: cross-camera-tests.log
+          name: cross-camera-test-logs
+          path: |
+            cross-camera-tests.log
+            full-repository-tests.log
           if-no-files-found: error
       - name: Configuration validation
         run: |
