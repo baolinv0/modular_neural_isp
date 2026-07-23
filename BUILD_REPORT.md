@@ -9,7 +9,7 @@ FULL_PGT_NOT_IMPLEMENTED
 PHASE2_BLOCKED
 ```
 
-The Phase-1 implementation now includes both rounds of external fail-closed, provenance and holdout-independence remediation.
+The Phase-1 implementation includes both rounds of external fail-closed, provenance and holdout-independence remediation.
 
 Real cross-device effectiveness is not declared because the captured 50-pair dataset and independent source/target holdouts were not executed in this repository session.
 
@@ -18,6 +18,7 @@ Real cross-device effectiveness is not declared because the captured 50-pair dat
 ```text
 Repository: baolinv0/modular_neural_isp
 Branch: feature/cross-camera-domain-adaptation-v2
+Verified HEAD: 4af77ceaea5e38d1b42ac828d61de1472e2146ab
 Base: feature/modular-capture-pipeline@efbfdfea87385254cb36e23354fa9b7f1ae2e4ce
 Draft PR: #6
 ```
@@ -71,67 +72,32 @@ The ten locked pairs evaluate the frozen system but do not set deployment policy
 
 ### Finite-value enforcement
 
-The following reject NaN/Inf and invalid negatives:
-
-- artifact support threshold;
-- artifact minimum parameter margin;
-- alignment displacement threshold;
-- runtime support distance;
-- runtime Adapter margin.
+Artifact thresholds, alignment thresholds and runtime support/margin measurements reject NaN, Inf and invalid negatives.
 
 ### Real evaluation identity
 
-`evaluate-phase1` requires:
-
-```text
-artifact.data_mode == real
-real_phase1_calibration_accepted == true
-```
-
-A sealed synthetic artifact cannot be presented as a real evaluation result.
+`evaluate-phase1` requires a real artifact and successful real Phase-1 calibration acceptance. A sealed synthetic artifact cannot be presented as a real evaluation result.
 
 ### Strict formal data contracts
 
-Source loading enforces:
-
-- Samsung device role;
-- metadata/sample/tensor binding;
-- non-empty and unique IDs;
-- finite non-negative tensors;
-- unique Samsung source content;
-- minimum source scene diversity.
-
-Calibration loading enforces:
-
-- iPhone/Samsung device roles;
-- metadata/tensor binding;
-- unique pair and metadata IDs;
-- finite non-negative tensors;
-- unique pair content signatures;
-- development/locked scene and exact-content disjointness.
+Source and calibration loaders enforce device roles, metadata/tensor binding, non-empty and unique IDs, finite non-negative tensors, source uniqueness, pair uniqueness and development/locked exact-content disjointness.
 
 ### Single training implementation
 
-The obsolete leaking `phase1_training.train_phase1` function has been removed from source. `phase1_training.py` contains shared primitives and artifact operations only. The sole authoritative training implementation is:
-
-```text
-phase1_protocol.train_phase1
-```
-
-Reload, IDE discovery and static analysis can no longer recover a second training path.
+The obsolete leaking `phase1_training.train_phase1` function has been removed from source. `phase1_training.py` contains shared primitives and artifact operations only. The sole authoritative implementation is `phase1_protocol.train_phase1`.
 
 ## Verification
 
-Code verification head:
+Exact verified head:
 
 ```text
-f247f0c5e6968a001b3bd407bcfe955d1580441d
+4af77ceaea5e38d1b42ac828d61de1472e2146ab
 ```
 
 GitHub Actions run:
 
 ```text
-30010621410: PASS
+30010973315: PASS
 ```
 
 Evidence:
@@ -145,17 +111,10 @@ real example config validation: PASS
 Samsung checkpoint strict load/forward/frozen-gradient/input-gradient canary: PASS
 ```
 
-Workflow artifact `cross-camera-test-logs` retains both complete unittest logs.
+The workflow retains both complete unittest logs as an artifact.
 
 ## Evidence boundary
 
-The repository is ready to execute the frozen real-data protocol, but it has not established:
+The repository is ready for independent Reviewer re-verification, but it has not established real 40+10 effectiveness, independent source replay, independent target good-case/failure/OOD safety, valid real Phase-2 activation, or complete IQA-PGT/VLM/pixel pseudo-supervision delivery.
 
-- real 40-pair out-of-fold prevalence;
-- real ten-pair locked global/ROI/highlight improvement;
-- independent Samsung source replay metrics;
-- independent iPhone good-case/failure/OOD behavior;
-- valid activation of real Phase 2;
-- complete IQA-PGT/VLM/pixel pseudo-supervision delivery.
-
-The next valid action is an independent Reviewer re-verification of the exact branch head. Only after Reviewer PASS should the frozen 40+10 experiment or final Evaluator begin.
+Only after Reviewer PASS should the frozen real-data experiment or final Evaluator begin.
