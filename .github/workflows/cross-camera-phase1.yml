@@ -1,0 +1,58 @@
+name: Cross-camera Phase 1
+
+on:
+  push:
+    branches:
+      - feature/cross-camera-domain-adaptation-v2
+  pull_request:
+    paths:
+      - 'cross_camera_tm/**'
+      - 'tests/**'
+      - 'configs/cross_camera_tm_v2*.yaml'
+      - 'scripts/**'
+      - '.github/workflows/cross-camera-phase1.yml'
+
+jobs:
+  phase1-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install CPU test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install numpy==1.26.4 pyyaml==6.0.2 opencv-contrib-python-headless==4.11.0.86 scipy==1.13.1 pillow==10.4.0 tifffile==2024.8.30
+      - name: Compile
+        run: python -m compileall -q cross_camera_tm main tests scripts
+      - name: Focused cross-camera tests
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -p 'test_cross_camera_*.py' -v 2>&1 | tee cross-camera-tests.log
+      - name: Full repository regression
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee full-repository-tests.log
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-camera-test-logs
+          path: |
+            cross-camera-tests.log
+            full-repository-tests.log
+          if-no-files-found: error
+      - name: Configuration validation
+        run: |
+          python main/run_cross_camera_adaptation.py validate-config --config configs/cross_camera_tm_v2.yaml
+          python main/run_cross_camera_adaptation.py validate-config --config configs/cross_camera_tm_v2.real.example.yaml
+      - name: Samsung checkpoint interface canary
+        run: python scripts/check_real_samsung_checkpoint.py --checkpoint photofinishing/models/photofinishing_s24-style-0.pth
