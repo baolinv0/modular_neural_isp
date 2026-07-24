@@ -34,9 +34,9 @@ uint16 linear sRGB
    → local tone mapping
    → chroma mapping
    → gamma
-→ optional bilateral guided upsampling
-→ optional NAFNet detail enhancement
-→ PNG-16 and/or JPEG
+→ save TM result
+→ NAFNet detail enhancement (default / required)
+→ save enhanced result
 ```
 
 By default, photofinishing runs at one-quarter resolution and uses the same Bilateral Guided Upsampling implementation as the main pipeline. Use `--no-downsampling` to run the photofinishing module at full input resolution.
@@ -48,8 +48,10 @@ python main/batch_linear_rgb_tm.py \
     --input-dir /path/to/linear_rgb16 \
     --output-dir /path/to/results \
     --photofinishing-model-path photofinishing/models/model.pth \
-    --output-format png16
+    --enhancement-model-path enhancement/models/model.pth
 ```
+
+The enhancement model is required because every input is processed through both TM and detail enhancement.
 
 The model JSON config is discovered automatically using the repository conventions:
 
@@ -59,7 +61,7 @@ model-parent/config/model.json
 model-parent/configs/model.json
 ```
 
-An explicit config can be supplied with `--photofinishing-config-path`.
+Explicit configs can be supplied with `--photofinishing-config-path` and `--enhancement-config-path`.
 
 ## Recursive scan and LTM refinement
 
@@ -68,39 +70,43 @@ python main/batch_linear_rgb_tm.py \
     --input-dir /path/to/linear_rgb16 \
     --output-dir /path/to/results \
     --photofinishing-model-path photofinishing/models/model.pth \
+    --enhancement-model-path enhancement/models/model.pth \
     --recursive \
     --post-process-ltm \
-    --solver-iterations 50 \
-    --output-format both
+    --solver-iterations 50
 ```
 
-## Optional detail enhancement
+## Output naming
 
-```bash
-python main/batch_linear_rgb_tm.py \
-    --input-dir /path/to/linear_rgb16 \
-    --output-dir /path/to/results \
-    --photofinishing-model-path photofinishing/models/model.pth \
-    --enhancement-model-path enhancement/models/model.pth \
-    --enhancement-strength 0.8
-```
-
-Without `--enhancement-model-path`, the result is the TM/photofinishing output and no enhancement network is executed.
-
-## Outputs
-
-For an input such as:
+`--output-format` defaults to `both`. For an input such as:
 
 ```text
 scene_01.png
 ```
 
-the result is saved as:
+the script saves all four outputs by default:
 
 ```text
 scene_01-tm.png
-scene_01-tm.jpg   # only for jpeg/both output mode
+scene_01-tm.jpg
+scene_01-tm-enhanced.png
+scene_01-tm-enhanced.jpg
 ```
+
+The variants mean:
+
+- `-tm`: photofinishing/TM output before detail enhancement;
+- `-tm-enhanced`: TM output after the NAFNet detail-enhancement model.
+
+The output format can still be restricted explicitly:
+
+```bash
+--output-format png16
+--output-format jpeg
+--output-format both
+```
+
+When `--skip-existing` is enabled, a sample is skipped only if every output required by the selected format already exists. With the default `both` mode, all four files must exist.
 
 The output directory also contains `batch_results.csv` with:
 
