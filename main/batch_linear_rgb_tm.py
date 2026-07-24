@@ -64,8 +64,7 @@ def discover_input_files(input_dir: Path, recursive: bool = False) -> list[Path]
         raise NotADirectoryError(f"Input directory does not exist: {input_dir}")
     iterator: Iterable[Path] = input_dir.rglob("*") if recursive else input_dir.glob("*")
     return sorted(
-        path for path in iterator
-        if path.is_file() and path.suffix.lower() in SUPPORTED_INPUT_EXTENSIONS
+        path for path in iterator if path.is_file() and path.suffix.lower() in SUPPORTED_INPUT_EXTENSIONS
     )
 
 
@@ -76,13 +75,9 @@ def load_linear_rgb16(path: Path, device: torch.device) -> torch.Tensor:
     if image_bgr is None:
         raise ValueError(f"Failed to decode image: {path}")
     if image_bgr.dtype != np.uint16:
-        raise ValueError(
-            f"Expected a 16-bit unsigned image, got dtype={image_bgr.dtype} for {path}"
-        )
+        raise ValueError(f"Expected a 16-bit unsigned image, got dtype={image_bgr.dtype} for {path}")
     if image_bgr.ndim != 3 or image_bgr.shape[2] != 3:
-        raise ValueError(
-            f"Expected exactly three RGB channels, got shape={image_bgr.shape} for {path}"
-        )
+        raise ValueError(f"Expected exactly three RGB channels, got shape={image_bgr.shape} for {path}")
 
     image_rgb = np.ascontiguousarray(image_bgr[..., ::-1])
     image = image_rgb.astype(np.float32) / np.float32(65535.0)
@@ -109,9 +104,7 @@ def resolve_config_path(model_path: Path, explicit_config_path: Path | None = No
         if candidate.is_file():
             return candidate
     checked = "\n".join(f"  - {candidate}" for candidate in candidates)
-    raise FileNotFoundError(
-        f"Could not locate a config for model {model_path}. Checked:\n{checked}"
-    )
+    raise FileNotFoundError(f"Could not locate a config for model {model_path}. Checked:\n{checked}")
 
 
 def _read_json(path: Path) -> dict:
@@ -119,11 +112,7 @@ def _read_json(path: Path) -> dict:
         return json.load(handle)
 
 
-def load_photofinishing_model(
-    model_path: Path,
-    config_path: Path | None,
-    device: torch.device,
-) -> torch.nn.Module:
+def load_photofinishing_model(model_path: Path, config_path: Path | None, device: torch.device) -> torch.nn.Module:
     """Load the trained photofinishing module."""
     from photofinishing.photofinishing_model import PhotofinishingModule
 
@@ -132,25 +121,15 @@ def load_photofinishing_model(
         raise FileNotFoundError(f"Photofinishing model does not exist: {model_path}")
     resolved_config = resolve_config_path(model_path, config_path)
     config = _read_json(resolved_config)
-    model = PhotofinishingModule(
-        device=device,
-        use_3d_lut=bool(config.get("use_3d_lut", False)),
-    )
+    model = PhotofinishingModule(device=device, use_3d_lut=bool(config.get("use_3d_lut", False)))
     state_dict = torch.load(model_path, map_location=device, weights_only=True)
     model.load_state_dict(state_dict)
     model.eval()
     return model
 
 
-def load_enhancement_model(
-    model_path: Path | None,
-    config_path: Path | None,
-    device: torch.device,
-) -> torch.nn.Module | None:
-    """Load the optional NAFNet detail-enhancement model."""
-    if model_path is None:
-        return None
-
+def load_enhancement_model(model_path: Path, config_path: Path | None, device: torch.device) -> torch.nn.Module:
+    """Load the NAFNet detail-enhancement model."""
     from denoising.nafnet_arch import NAFNet
 
     model_path = Path(model_path)
@@ -192,12 +171,15 @@ def render_linear_rgb(
     saturation_amount: float = 0.0,
     highlight_amount: float = 0.0,
     shadow_amount: float = 0.0,
-) -> torch.Tensor:
-    """Run an already color-corrected linear RGB image through TM and enhancement."""
+) -> tuple[torch.Tensor, torch.Tensor | None]:
+    """Run a color-corrected linear RGB image through TM and detail enhancement.
+
+    Returns:
+        (tm_output, enhanced_output). ``enhanced_output`` is None only when no
+        enhancement model is supplied.
+    """
     if linear_rgb.ndim != 4 or linear_rgb.shape[0] != 1 or linear_rgb.shape[1] != 3:
-        raise ValueError(
-            f"Expected linear RGB tensor with shape [1, 3, H, W], got {tuple(linear_rgb.shape)}"
-        )
+        raise ValueError(f"Expected linear RGB tensor with shape [1, 3, H, W], got {tuple(linear_rgb.shape)}")
     if not 0.0 <= enhancement_strength <= 1.0:
         raise ValueError("enhancement_strength must be within [0, 1].")
 
@@ -217,37 +199,22 @@ def render_linear_rgb(
     if downsample_photofinishing:
         height, width = linear_rgb.shape[-2:]
         if min(height, width) < 64:
-            raise ValueError(
-                "Images smaller than 64 pixels on either side require --no-downsampling."
-            )
-        low_res_input = F.interpolate(
-            linear_rgb,
-            scale_factor=0.25,
-            mode="bilinear",
-            align_corners=True,
-        )
+            raise ValueError("Images smaller than 64 pixels on either side require --no-downsampling.")
+        low_res_input = F.interpolate(linear_rgb, scale_factor=0.25, mode="bilinear", align_corners=True)
         low_res_output = photofinishing_model(low_res_input, **kwargs)
-        rendered = upsampler(linear_rgb, low_res_input, low_res_output)
+        tm_output = upsampler(linear_rgb, low_res_input, low_res_output)
     else:
-        rendered = photofinishing_model(linear_rgb, **kwargs)
+        tm_output = photofinishing_model(linear_rgb, **kwargs)
 
-    rendered = rendered.clamp(0.0, 1.0)
+    tm_output = tm_output.clamp(0.0, 1.0)
+    enhanced_output = None
     if enhancement_model is not None:
-        enhanced = enhancement_model(rendered).clamp(0.0, 1.0)
-        rendered = (
-            (1.0 - enhancement_strength) * rendered
-            + enhancement_strength * enhanced
-        ).clamp(0.0, 1.0)
-    return rendered
+        enhanced = enhancement_model(tm_output).clamp(0.0, 1.0)
+        enhanced_output = ((1.0 - enhancement_strength) * tm_output + enhancement_strength * enhanced).clamp(0.0, 1.0)
+    return tm_output, enhanced_output
 
 
-def save_rendered_image(
-    image: torch.Tensor,
-    output_path: Path,
-    *,
-    output_format: str,
-    jpeg_quality: int,
-) -> Path:
+def save_rendered_image(image: torch.Tensor, output_path: Path, *, output_format: str, jpeg_quality: int) -> Path:
     """Save one rendered tensor as PNG-16 or JPEG."""
     if output_format not in {"png16", "jpeg"}:
         raise ValueError(f"Unsupported output format: {output_format}")
@@ -281,16 +248,7 @@ def _output_specs(output_format: str) -> tuple[str, ...]:
 def _write_manifest(path: Path, records: Sequence[BatchRecord]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(
-            handle,
-            fieldnames=[
-                "input_file",
-                "output_files",
-                "status",
-                "elapsed_seconds",
-                "error",
-            ],
-        )
+        writer = csv.DictWriter(handle, fieldnames=["input_file", "output_files", "status", "elapsed_seconds", "error"])
         writer.writeheader()
         for record in records:
             writer.writerow(
@@ -304,14 +262,22 @@ def _write_manifest(path: Path, records: Sequence[BatchRecord]) -> None:
             )
 
 
+def _expected_output_paths(output_base: Path, output_format: str) -> list[Path]:
+    expected: list[Path] = []
+    for fmt in _output_specs(output_format):
+        suffix = ".png" if fmt == "png16" else ".jpg"
+        expected.append((output_base.parent / f"{output_base.name}-tm").with_suffix(suffix))
+        expected.append((output_base.parent / f"{output_base.name}-tm-enhanced").with_suffix(suffix))
+    return expected
+
+
 def run_batch(args: argparse.Namespace) -> int:
     input_dir = Path(args.input_dir).resolve()
     output_dir = Path(args.output_dir).resolve()
     files = discover_input_files(input_dir, recursive=args.recursive)
     if not files:
         raise FileNotFoundError(
-            f"No supported 16-bit inputs found in {input_dir}. "
-            f"Supported extensions: {sorted(SUPPORTED_INPUT_EXTENSIONS)}"
+            f"No supported 16-bit inputs found in {input_dir}. Supported extensions: {sorted(SUPPORTED_INPUT_EXTENSIONS)}"
         )
 
     device = select_device(args.device)
@@ -324,7 +290,7 @@ def run_batch(args: argparse.Namespace) -> int:
         device,
     )
     enhancement_model = load_enhancement_model(
-        Path(args.enhancement_model_path) if args.enhancement_model_path else None,
+        Path(args.enhancement_model_path),
         Path(args.enhancement_config_path) if args.enhancement_config_path else None,
         device,
     )
@@ -335,13 +301,10 @@ def run_batch(args: argparse.Namespace) -> int:
     for index, input_path in enumerate(files, start=1):
         started = time.perf_counter()
         relative = input_path.relative_to(input_dir)
-        output_base = output_dir / relative.parent / f"{relative.stem}-tm"
+        output_base = output_dir / relative.parent / relative.stem
         print(f"[{index}/{len(files)}] {relative.as_posix()}")
         try:
-            expected_outputs = [
-                output_base.with_suffix(".png" if fmt == "png16" else ".jpg")
-                for fmt in _output_specs(args.output_format)
-            ]
+            expected_outputs = _expected_output_paths(output_base, args.output_format)
             if args.skip_existing and expected_outputs and all(path.exists() for path in expected_outputs):
                 records.append(
                     BatchRecord(
@@ -355,7 +318,7 @@ def run_batch(args: argparse.Namespace) -> int:
 
             linear_rgb = load_linear_rgb16(input_path, device=device)
             with torch.inference_mode():
-                rendered = render_linear_rgb(
+                tm_output, enhanced_output = render_linear_rgb(
                     linear_rgb,
                     photofinishing_model,
                     upsampler,
@@ -371,15 +334,28 @@ def run_batch(args: argparse.Namespace) -> int:
                     shadow_amount=args.shadow_amount,
                 )
 
-            output_paths = [
-                save_rendered_image(
-                    rendered,
-                    output_base,
-                    output_format=fmt,
-                    jpeg_quality=args.jpeg_quality,
+            if enhanced_output is None:
+                raise RuntimeError("Enhancement output is unexpectedly None. Enhancement model must be provided.")
+
+            output_paths: list[Path] = []
+            for fmt in _output_specs(args.output_format):
+                output_paths.append(
+                    save_rendered_image(
+                        tm_output,
+                        output_base.parent / f"{output_base.name}-tm",
+                        output_format=fmt,
+                        jpeg_quality=args.jpeg_quality,
+                    )
                 )
-                for fmt in _output_specs(args.output_format)
-            ]
+                output_paths.append(
+                    save_rendered_image(
+                        enhanced_output,
+                        output_base.parent / f"{output_base.name}-tm-enhanced",
+                        output_format=fmt,
+                        jpeg_quality=args.jpeg_quality,
+                    )
+                )
+
             success_count += 1
             records.append(
                 BatchRecord(
@@ -389,7 +365,7 @@ def run_batch(args: argparse.Namespace) -> int:
                     elapsed_seconds=time.perf_counter() - started,
                 )
             )
-        except Exception as exc:  # Keep processing independent batch items.
+        except Exception as exc:
             records.append(
                 BatchRecord(
                     input_file=str(input_path),
@@ -407,25 +383,26 @@ def run_batch(args: argparse.Namespace) -> int:
     _write_manifest(manifest_path, records)
     failed_count = sum(record.status == "failed" for record in records)
     skipped_count = sum(record.status == "skipped" for record in records)
-    print(
-        f"Completed: {success_count} succeeded, {failed_count} failed, "
-        f"{skipped_count} skipped. Manifest: {manifest_path}"
-    )
+    print(f"Completed: {success_count} succeeded, {failed_count} failed, {skipped_count} skipped. Manifest: {manifest_path}")
     return 1 if failed_count else 0
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Batch process uint16 linear sRGB images that already include AWB and CCM, "
-            "starting directly from the photofinishing/TM stage."
+            "Batch process uint16 linear sRGB images that already include AWB and CCM, starting directly "
+            "from the photofinishing/TM stage, then always run detail enhancement and save both results."
         )
     )
     parser.add_argument("--input-dir", required=True, help="Directory containing uint16 RGB PNG/TIFF files.")
     parser.add_argument("--output-dir", required=True, help="Directory for rendered outputs and the CSV manifest.")
     parser.add_argument("--photofinishing-model-path", required=True, help="Trained photofinishing .pth model.")
     parser.add_argument("--photofinishing-config-path", default=None, help="Optional explicit photofinishing JSON config.")
-    parser.add_argument("--enhancement-model-path", default=None, help="Optional detail-enhancement NAFNet model.")
+    parser.add_argument(
+        "--enhancement-model-path",
+        required=True,
+        help="Trained detail-enhancement NAFNet .pth model. Enhancement runs by default and both outputs are saved.",
+    )
     parser.add_argument("--enhancement-config-path", default=None, help="Optional explicit enhancement JSON config.")
     parser.add_argument("--enhancement-strength", type=float, default=1.0, help="Enhancement blend strength in [0, 1].")
     parser.add_argument("--device", choices=["auto", "gpu", "cpu", "mps"], default="auto")
@@ -438,7 +415,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--saturation-amount", type=float, default=0.0)
     parser.add_argument("--highlight-amount", type=float, default=0.0)
     parser.add_argument("--shadow-amount", type=float, default=0.0)
-    parser.add_argument("--output-format", choices=["png16", "jpeg", "both"], default="png16")
+    parser.add_argument(
+        "--output-format",
+        choices=["png16", "jpeg", "both"],
+        default="both",
+        help=(
+            "Output format. Default is both, so TM and TM-enhanced images "
+            "are saved as both PNG16 and JPEG."
+        ),
+    )
     parser.add_argument("--jpeg-quality", type=int, default=95)
     parser.add_argument("--skip-existing", action="store_true")
     parser.add_argument("--fail-fast", action="store_true")
