@@ -179,10 +179,11 @@ class NonFiniteEvidenceTests(unittest.TestCase):
     def test_non_finite_pair_target_is_rejected_before_predictor_fit(self):
         sources, pairs = _make_protocol_data()
         bad = PairTransformParameters(
-            gains=torch.full((1, 3), float("nan")),
+            gains=torch.ones(1, 3),
             matrix=torch.eye(3).unsqueeze(0),
             curve_y=torch.linspace(0.0, 1.0, 6).unsqueeze(0),
         )
+        bad.gains.fill_(float("nan"))
 
         def invalid_targets(items, _solver, _frozen_tm, _config):
             return {items[0].example.pair_id: bad}
