@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import hashlib
+import math
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 import torch
 
@@ -60,6 +61,50 @@ def _state_sha256(module: torch.nn.Module) -> str:
         digest.update(str(value.dtype).encode("ascii"))
         digest.update(value.numpy().tobytes(order="C"))
     return digest.hexdigest()
+
+
+def _non_finite_error(name: str) -> ValueError:
+    return ValueError(f"NON_FINITE_PHASE1_EVIDENCE: {name}")
+
+
+def _require_finite_values(values: Sequence[float], name: str, *, allow_empty: bool = False) -> None:
+    if not values and not allow_empty:
+        raise ValueError(f"{name} must not be empty")
+    if any(not math.isfinite(float(value)) for value in values):
+        raise _non_finite_error(name)
+
+
+def _require_finite_tensor(tensor: torch.Tensor, name: str) -> None:
+    if not torch.isfinite(tensor).all():
+        raise _non_finite_error(name)
+
+
+def _require_finite_parameter_targets(
+    targets: Mapping[str, PairTransformParameters],
+    name: str,
+) -> None:
+    for pair_id, parameters in targets.items():
+        for field_name, tensor in (
+            ("gains", parameters.gains),
+            ("matrix", parameters.matrix),
+            ("curve_y", parameters.curve_y),
+        ):
+            if not torch.isfinite(tensor).all():
+                raise _non_finite_error(f"{name}:{pair_id}:{field_name}")
+
+
+def _require_finite_prepared(items: Sequence[Any]) -> None:
+    for item in items:
+        if not math.isfinite(float(item.baseline_error)):
+            raise _non_finite_error(f"prepared:{item.example.pair_id}:baseline_error")
+        for field_name, tensor in (
+            ("iphone", item.iphone),
+            ("samsung", item.samsung),
+            ("teacher", item.teacher),
+            ("features", item.features),
+            ("confidence", item.confidence),
+        ):
+            _require_finite_tensor(tensor, f"prepared:{item.example.pair_id}:{field_name}")
 
 
 def _luma(image: torch.Tensor) -> torch.Tensor:
@@ -123,7 +168,9 @@ def _raw_parameter_targets(
     increments = increments / increments.sum(dim=1, keepdim=True)
     raw_curve_gated = torch.log(torch.expm1(increments).clamp_min(1e-8))
     raw_curve = raw_curve_gated / gate
-    return torch.cat((raw_gain, raw_matrix, raw_curve), dim=1)
+    result = torch.cat((raw_gain, raw_matrix, raw_curve), dim=1)
+    _require_finite_tensor(result, "raw_parameter_targets")
+    return result
 
 
 def _canonicalize_component_signs(components: torch.Tensor) -> torch.Tensor:
@@ -140,18 +187,16 @@ def _fit_ridge_predictor(
     targets,
     config: Phase1TrainingConfig,
 ) -> tuple[TargetCameraAdapter, torch.Tensor, torch.Tensor]:
-    """Fit z->theta with fold-local PCA features and teacher-weighted ridge.
-
-    The feature normalization, PCA basis and regression coefficients are all
-    estimated from the current fold's training scene groups only. The bias is
-    unregularized so a global device correction is the minimum-complexity
-    solution; feature-conditioned variation must overcome ridge regularization.
-    """
+    """Fit z->theta with fold-local PCA features and teacher-weighted ridge."""
 
     if not items:
         raise ValueError("no qualified Phase 1 training pairs")
     features, mean, std = core._normalization(items)
+    _require_finite_tensor(features, "predictor_features")
+    _require_finite_tensor(mean, "predictor_feature_mean")
+    _require_finite_tensor(std, "predictor_feature_std")
     normalized = (features - mean) / std
+    _require_finite_tensor(normalized, "predictor_normalized_features")
     confidence = torch.cat([item.confidence for item in items], dim=0)
     teacher_weights = torch.tensor(
         [item.teacher_weight for item in items],
@@ -159,6 +204,7 @@ def _fit_ridge_predictor(
         device=normalized.device,
     ).clamp_min(1e-3)
     parameter_targets = core._stack_targets(items, targets)
+    _require_finite_parameter_targets({"stacked": parameter_targets}, "predictor_targets")
     adapter = TargetCameraAdapter(
         len(PHASE1_FEATURE_NAMES),
         config.hidden_dim,
@@ -169,6 +215,7 @@ def _fit_ridge_predictor(
         linear.weight.zero_()
         linear.bias.zero_()
         _, _, right_vectors = torch.linalg.svd(normalized, full_matrices=False)
+        _require_finite_tensor(right_vectors, "predictor_pca")
         component_count = min(config.hidden_dim, right_vectors.shape[0])
         components = _canonicalize_component_signs(right_vectors[:component_count])
         linear.weight[:component_count].copy_(components)
@@ -191,9 +238,12 @@ def _fit_ridge_predictor(
             gram + ridge_strength * regularizer,
             cross,
         )
+        _require_finite_tensor(coefficients, "predictor_coefficients")
         adapter.head.weight.copy_(coefficients[:-1].transpose(0, 1))
         adapter.head.bias.copy_(coefficients[-1])
     adapter.eval()
+    for name, tensor in adapter.state_dict().items():
+        _require_finite_tensor(tensor, f"predictor_state:{name}")
     return adapter, mean, std
 
 
@@ -223,9 +273,15 @@ def _locked_metric_summary(
                 before = baseline_errors[name]
                 after = adapted_errors[name]
                 if before is not None and after is not None:
-                    improvements[name].append(float(before - after))
+                    improvement = float(before - after)
+                    if not math.isfinite(improvement):
+                        raise _non_finite_error(
+                            f"locked_metric:{item.example.pair_id}:{name}"
+                        )
+                    improvements[name].append(improvement)
     summary: dict[str, Any] = {}
     for name, values in improvements.items():
+        _require_finite_values(values, f"locked_metric:{name}", allow_empty=True)
         summary[f"{name}_pairs"] = len(values)
         summary[f"{name}_median_improvement"] = (
             float(torch.median(torch.tensor(values)).item())
@@ -271,6 +327,7 @@ def train_phase1(
         frozen_tm,
         TeacherQualifier(profile),
     )
+    _require_finite_prepared(prepared)
     prepared_development = [item for item in prepared if item.example.split == "development"]
     prepared_locked = [item for item in prepared if item.example.split == "locked"]
     solver = core.ObservablePairSolver(ridge=config.ridge)
@@ -285,6 +342,7 @@ def train_phase1(
             if item.example.scene_group in fold.train_groups
         ]
         fold_targets = core._fit_pair_targets(fold_candidates, solver, frozen_tm, config)
+        _require_finite_parameter_targets(fold_targets, f"fold_{fold.fold_index}_targets")
         train_items = [
             item
             for item in fold_candidates
@@ -296,20 +354,20 @@ def train_phase1(
             if item.example.scene_group in fold.validation_groups
         ]
         adapter, mean, std = _fit_ridge_predictor(train_items, fold_targets, config)
-        improvements, _ = core._evaluate_items(
+        improvements, margins = core._evaluate_items(
             validation_items,
             adapter,
             mean,
             std,
             frozen_tm,
         )
+        _require_finite_values(improvements, f"fold_{fold.fold_index}_improvements")
+        _require_finite_values(margins, f"fold_{fold.fold_index}_margins")
         for item, improvement in zip(validation_items, improvements):
             out_of_fold[item.example.pair_id] = improvement
-        median = (
-            float(torch.median(torch.tensor(improvements)).item())
-            if improvements
-            else float("-inf")
-        )
+        median = float(torch.median(torch.tensor(improvements)).item())
+        if not math.isfinite(median):
+            raise _non_finite_error(f"fold_{fold.fold_index}_median")
         fold_reports.append(
             FoldReport(
                 fold_index=fold.fold_index,
@@ -325,7 +383,9 @@ def train_phase1(
         out_of_fold.get(item.example.pair_id, 0.0)
         for item in prepared_development
     ]
+    _require_finite_values(development_improvements, "development_improvements")
     final_targets = core._fit_pair_targets(prepared_development, solver, frozen_tm, config)
+    _require_finite_parameter_targets(final_targets, "final_pair_targets")
     qualified_development = [
         item
         for item in prepared_development
@@ -343,6 +403,8 @@ def train_phase1(
         feature_std,
         frozen_tm,
     )
+    _require_finite_values(locked_improvements, "locked_improvements")
+    _require_finite_values(locked_margins, "locked_margins")
     locked_metrics = _locked_metric_summary(
         prepared_locked,
         final_adapter,
@@ -355,8 +417,11 @@ def train_phase1(
         [(item.features - feature_mean) / feature_std for item in qualified_development],
         dim=0,
     )
+    _require_finite_tensor(normalized_development, "normalized_development")
     support_min = normalized_development.min(dim=0).values
     support_max = normalized_development.max(dim=0).values
+    _require_finite_tensor(support_min, "support_min")
+    _require_finite_tensor(support_max, "support_max")
     positive_folds = sum(item.median_improvement > 0.0 for item in fold_reports)
     improved_development = sum(value > 0.0 for value in development_improvements)
     bootstrap_lower = core._bootstrap_lower(
@@ -364,7 +429,11 @@ def train_phase1(
         config.bootstrap_samples,
         config.seed,
     )
+    if not math.isfinite(bootstrap_lower):
+        raise _non_finite_error("development_bootstrap_lower")
     locked_median = float(torch.median(torch.tensor(locked_improvements)).item())
+    if not math.isfinite(locked_median):
+        raise _non_finite_error("locked_median_improvement")
     backbone_unchanged = backbone_before == _state_sha256(frozen_tm.module)
 
     reasons: list[str] = []
