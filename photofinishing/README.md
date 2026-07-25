@@ -3,7 +3,7 @@
 After [color correction](../awb_ccm), the image is processed by the photofinishing module, which includes the following stages: digital gain, global tone mapping, local tone mapping, chroma mapping, and gamma correction. Each stage is applied sequentially, where a neural network takes the output of the previous stage(s) and predicts the corresponding coefficient(s) for the next transformation (see Sec. 2.3 of the [paper](https://arxiv.org/abs/2512.08564) for details).
 
 In addition to these main stages of the photofinishing module, we also implemented different editing functions that operate within the photofinishing module as part of our photo-editing tool. All functionality is implemented in the `PhotofinishingModule` inside [`photofinishing_model.py`](photofinishing_model.py).
- 
+  
 
 <p align="center">
   <img src="../figures/photofinishing.gif" width="600" style="max-width: 100%; height: auto;">
@@ -25,7 +25,7 @@ python train.py \
     --data-training-dir /path/to/training/metadata/folder \   # optional; defaults to "data" in the same directory as in-training-dir
     --in-validation-dir /path/to/validation/denoised/raw/image/folder \
     --gt-validation-dir /path/to/validation/ground-truth/srgb/image/folder \
-    --data-validation-dir /path/to/validation/metadata/folder \   # optional; defaults to "data" in the same directory as in-validation-dir
+    --data-validation-dir /path/to/validation/metadata/folder \   # optional; defaults to "data" in the same directory as in-training-dir
     --exp-name name-of-dataset   # choose any suffix you prefer
 ```
 
@@ -38,6 +38,16 @@ If the temporary folder already exists (e.g., from previous experiments), the sc
 If you prefer to train on patches instead, add `--extract-patches`. To enable learning of a 3D LUT (applied before chroma mapping), use `--use-3d-lut`.
 
 See [`train.py`](train.py) for additional useful arguments.
+
+### Same-scene non-pixel-aligned style adaptation
+
+An isolated experimental training path is available in [`unpaired_style`](unpaired_style). It uses a same-scene reference image without pixel-wise supervision:
+
+1. train only Gain and GTM with global/semantic luminance distribution losses;
+2. freeze the luminance path and train only the CbCr chroma LUT;
+3. preserve the source or Stage-1 output with edge, high-frequency, luminance, and LUT regularization.
+
+Run it with [`train_unpaired_style.py`](train_unpaired_style.py). The original paired `train.py` behavior is unchanged.
 
 ---
 
@@ -52,7 +62,7 @@ python test.py \
     --model-path /path/to/trained/photofinishing/module \
     --in-testing-dir /path/to/input/denoised/raw/image/folder \
     --gt-testing-dir /path/to/ground-truth/srgb/image/folder \
-    --data-testing-dir /path/to/testing/metadata/folder   # optional; defaults to "data" in the same directory as in-testing-dir
+    --data-testing-dir /path/to/testing/metadata/folder   # optional; defaults to "data" in the same directory as in-training-dir
 ```
 
 This will test the model and report PSNR and SSIM, and will also save the results in `.txt` format inside the `results` directory. Use `--result-dir <path>` to specify a custom output directory.

@@ -1,0 +1,33 @@
+{
+  "stage1_epochs": 5,
+  "stage2_epochs": 5,
+  "stage1_learning_rate": 1e-5,
+  "stage2_learning_rate": 1e-5,
+  "weight_decay": 0.0,
+  "gradient_clip_norm": 5.0,
+  "histogram_bins": 32,
+  "chroma_bins": 16,
+  "histogram_sigma": 0.03,
+  "chroma_sigma": 0.04,
+  "stage1": {
+    "exposure": 1.0,
+    "luminance_cdf": 1.0,
+    "percentiles": 1.0,
+    "tone_regions": 0.5,
+    "semantic_regions": 1.0,
+    "edge_anchor": 0.25,
+    "high_frequency_anchor": 0.1,
+    "residual_anchor": 0.05
+  },
+  "stage2": {
+    "chroma_histogram": 1.0,
+    "chroma_moments": 0.5,
+    "saturation_cdf": 0.5,
+    "semantic_regions": 1.0,
+    "luminance_preserve": 2.0,
+    "edge_anchor": 0.1,
+    "lut_identity": 0.02,
+    "lut_total_variation": 0.02,
+    "lut_bound": 0.1
+  }
+}
