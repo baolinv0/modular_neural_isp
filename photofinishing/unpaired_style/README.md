@@ -35,9 +35,10 @@ Each JSONL row is strict and paths are resolved relative to the manifest:
 ```
 
 The input and reference masks are independent. No geometric correspondence is
-assumed inside a semantic region.
+assumed inside a semantic region. Training, validation, and test manifests must
+be scene-disjoint and may not reuse an exact input or reference file.
 
-## Run
+## Train
 
 ```bash
 python photofinishing/train_unpaired_style.py \
@@ -52,6 +53,24 @@ python photofinishing/train_unpaired_style.py \
 Use `--dry-run` to validate manifests, checkpoint compatibility, model forward,
 and region contracts without optimization.
 
+## Evaluate a scene-disjoint holdout
+
+The test manifest must contain only `split=test` records. The evaluator compares
+the source and adapted outputs against the non-aligned reference using distribution
+metrics, while content drift is measured against the aligned source output.
+
+```bash
+python photofinishing/eval_unpaired_style.py \
+  --manifest /data/test.jsonl \
+  --source-checkpoint photofinishing/models/default.pth \
+  --adapted-checkpoint runs/unpaired_style_v1/stage2_best.pth \
+  --output runs/unpaired_style_v1/test_report.json \
+  --device cuda
+```
+
+The report includes luminance/chroma style improvement, exposure and percentile
+errors, shadow/highlight clipping, and edge/high-frequency/luminance drift.
+
 ## Losses
 
 Stage 1 uses log-exposure, luminance CDF/Wasserstein, percentiles, soft
@@ -64,7 +83,8 @@ Stage-1 model, and identity/TV/bounded-displacement regularization on the CbCr L
 
 ## Evidence boundary
 
-This implementation proves the training mechanics and module-freezing protocol.
-It does not prove that global/ROI distribution matching improves real target-domain
-images. Real validation must use scene-disjoint data and report failure/good-case
-holdouts, clipping, shadow, hue, saturation, scene diversity, and human preference.
+This implementation proves the training mechanics, module-freezing protocol, and
+holdout metric computation. It does not prove that global/ROI distribution matching
+improves real target-domain images. Real validation must use scene-disjoint data and
+report failure/good-case holdouts, clipping, shadow, hue, saturation, scene diversity,
+and human preference.
