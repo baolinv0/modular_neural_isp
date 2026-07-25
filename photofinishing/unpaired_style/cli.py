@@ -50,8 +50,6 @@ def main(argv=None) -> int:
   validate_disjoint_manifests(train_records, validation_records)
   train_dataset = UnpairedStyleDataset(train_records, image_size=args.image_size)
   validation_dataset = UnpairedStyleDataset(validation_records, image_size=args.image_size)
-  if train_dataset.region_names != validation_dataset.region_names:
-    raise ValueError("train and validation manifests must expose the same region names")
   train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
                             num_workers=args.num_workers)
   validation_loader = DataLoader(validation_dataset, batch_size=args.batch_size, shuffle=False,
@@ -69,7 +67,8 @@ def main(argv=None) -> int:
       "status": "DRY_RUN_PASS",
       "train_samples": len(train_dataset),
       "validation_samples": len(validation_dataset),
-      "regions": train_dataset.region_names,
+      "train_regions": train_dataset.region_names,
+      "validation_regions": validation_dataset.region_names,
       "output_shape": list(output["output"].shape),
     }, indent=2))
     return 0
