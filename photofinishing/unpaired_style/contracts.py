@@ -149,6 +149,10 @@ class TwoStageTrainingConfig:
         raise ValueError(f"{name} must be finite and positive")
     if not math.isfinite(self.weight_decay) or self.weight_decay < 0:
       raise ValueError("weight_decay must be finite and non-negative")
+    for group_name, group in (("stage1", self.stage1), ("stage2", self.stage2)):
+      for weight_name, weight in asdict(group).items():
+        if not math.isfinite(weight) or weight < 0:
+          raise ValueError(f"{group_name}.{weight_name} must be finite and non-negative")
 
   def to_dict(self) -> Dict[str, object]:
     return asdict(self)
