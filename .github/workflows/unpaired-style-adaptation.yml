@@ -6,6 +6,7 @@ on:
     paths:
       - 'photofinishing/unpaired_style/**'
       - 'photofinishing/train_unpaired_style.py'
+      - 'photofinishing/eval_unpaired_style.py'
       - 'photofinishing/unpaired_style_default.json'
       - 'tests/test_unpaired_style_*.py'
       - '.github/workflows/unpaired-style-adaptation.yml'
@@ -15,6 +16,7 @@ on:
     paths:
       - 'photofinishing/unpaired_style/**'
       - 'photofinishing/train_unpaired_style.py'
+      - 'photofinishing/eval_unpaired_style.py'
       - 'photofinishing/unpaired_style_default.json'
       - 'tests/test_unpaired_style_*.py'
       - '.github/workflows/unpaired-style-adaptation.yml'
@@ -35,7 +37,10 @@ jobs:
           python -m pip install numpy pillow pytest
       - name: Compile experiment code
         run: |
-          python -m compileall -q photofinishing/unpaired_style photofinishing/train_unpaired_style.py
+          python -m compileall -q \
+            photofinishing/unpaired_style \
+            photofinishing/train_unpaired_style.py \
+            photofinishing/eval_unpaired_style.py
       - name: Run targeted tests
         env:
           PYTHONPATH: .
