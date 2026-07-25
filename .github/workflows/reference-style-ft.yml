@@ -1,0 +1,37 @@
+name: Reference Style Fine-Tuning
+
+on:
+  pull_request:
+    paths:
+      - 'photofinishing/reference_style_*.py'
+      - 'photofinishing/train_reference_style.py'
+      - 'photofinishing/evaluate_reference_style.py'
+      - 'tests/test_reference_style_*.py'
+      - '.github/workflows/reference-style-ft.yml'
+  push:
+    branches:
+      - feature/unaligned-reference-style-ft-v1
+
+jobs:
+  reference-style-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - name: Install focused dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy opencv-python-headless pytest
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Compile new modules
+        run: |
+          python -m compileall -q \
+            photofinishing/reference_style_data.py \
+            photofinishing/reference_style_losses.py \
+            photofinishing/reference_style_training.py \
+            photofinishing/train_reference_style.py \
+            photofinishing/evaluate_reference_style.py
+      - name: Run focused tests
+        run: pytest -q tests/test_reference_style_*.py
