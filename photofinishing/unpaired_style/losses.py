@@ -132,7 +132,7 @@ def tone_region_loss(
 ) -> torch.Tensor:
   first_support = _mask_or_ones(first, first_mask)
   second_support = _mask_or_ones(second, second_mask)
-  thresholds = ((0.20, -1.0), (0.20, 0.80), (0.80, 2.0))
+  thresholds = ((-1.0, 0.20), (0.20, 0.80), (0.80, 2.0))
   losses = []
   sharpness = 30.0
   for low, high in thresholds:
