@@ -38,6 +38,17 @@ def test_manifest_resolves_paths_and_rejects_scene_leakage(tmp_path):
     validate_disjoint_manifests(records, validation)
 
 
+def test_split_validation_rejects_reused_input_with_renamed_scene():
+  train = [StylePairRecord(
+    sample_id="train", scene_group="train-scene", input_path="same-input.npy",
+    reference_path="train-reference.npy", split="train")]
+  validation = [StylePairRecord(
+    sample_id="validation", scene_group="validation-scene", input_path="same-input.npy",
+    reference_path="validation-reference.npy", split="validation")]
+  with pytest.raises(ValueError, match="input images"):
+    validate_disjoint_manifests(train, validation)
+
+
 def test_config_rejects_non_positive_learning_rate():
   with pytest.raises(ValueError, match="stage1_learning_rate"):
     TwoStageTrainingConfig(stage1_learning_rate=0.0)
