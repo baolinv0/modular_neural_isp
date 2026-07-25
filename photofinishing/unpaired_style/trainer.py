@@ -28,7 +28,10 @@ def set_deterministic_seed(seed: int) -> None:
 
 
 def _load_state_dict(path: str) -> Mapping[str, torch.Tensor]:
-  payload = torch.load(path, map_location="cpu", weights_only=True)
+  try:
+    payload = torch.load(path, map_location="cpu", weights_only=True)
+  except TypeError:
+    payload = torch.load(path, map_location="cpu")
   if isinstance(payload, Mapping):
     for key in ("model_state_dict", "state_dict", "model"):
       if key in payload and isinstance(payload[key], Mapping):
