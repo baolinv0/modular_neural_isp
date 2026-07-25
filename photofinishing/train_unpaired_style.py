@@ -31,7 +31,7 @@ try:
         trainable_parameters,
     )
     from .unpaired_style_losses import Stage1LossWeights, Stage1UnpairedLoss, Stage2LossWeights, Stage2UnpairedLoss
-except ImportError:
+except ImportError:  # direct execution from photofinishing/
     from unpaired_reference_data import ReferenceStyleDataset
     from unpaired_stage_control import (
         AdaptationStage, ParameterAnchor, assert_trainable_scope, configure_trainable_scope, set_stage_train_mode,
@@ -178,23 +178,6 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _validate_arguments(args: argparse.Namespace) -> None:
-    if args.epochs <= 0 or args.batch_size <= 0 or args.image_size <= 0:
-        raise ValueError("epochs, batch-size, and image-size must be positive")
-    if args.learning_rate <= 0 or args.weight_decay < 0:
-        raise ValueError("learning-rate must be positive and weight-decay non-negative")
-    weight_names = [name for name in vars(args) if name.endswith("_weight")]
-    negative = [name for name in weight_names if getattr(args, name) < 0]
-    if negative:
-        raise ValueError(f"Loss weights must be non-negative: {negative}")
-    if args.stage == AdaptationStage.LUMINANCE.value:
-        if args.exposure_weight + args.percentile_weight + args.luma_distribution_weight <= 0:
-            raise ValueError("Luminance stage requires at least one style loss")
-    else:
-        if args.chroma_histogram_weight + args.chroma_moment_weight + args.saturation_weight <= 0:
-            raise ValueError("Chroma stage requires at least one chroma style loss")
-
-
 def _resolve_device(requested: str) -> torch.device:
     if requested == "auto":
         if torch.cuda.is_available():
@@ -238,6 +221,18 @@ def _validate_stage1_provenance(checkpoint: str, configured_path: Optional[str])
     payload = json.loads(config_path.read_text(encoding="utf-8"))
     if payload.get("stage") != AdaptationStage.LUMINANCE.value:
         raise ValueError(f"Chroma source is not a luminance-stage run: {config_path}")
+    expected_hashes = {
+        payload.get("best_checkpoint_sha256"),
+        payload.get("last_checkpoint_sha256"),
+    } - {None, ""}
+    if not expected_hashes:
+        raise ValueError(f"Stage-1 run config does not bind output checkpoint hashes: {config_path}")
+    actual_hash = _sha256_file(checkpoint)
+    if actual_hash not in expected_hashes:
+        raise ValueError(
+            "Loaded Stage-1 checkpoint does not match the hashes recorded in "
+            f"{config_path}: {actual_hash}"
+        )
     return config_path
 
 
@@ -245,6 +240,23 @@ def _write_json(path: Path, payload: Dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2, sort_keys=True)
+
+
+def _validate_arguments(args: argparse.Namespace) -> None:
+    if args.epochs <= 0 or args.batch_size <= 0 or args.image_size <= 0:
+        raise ValueError("epochs, batch-size, and image-size must be positive")
+    if args.learning_rate <= 0 or args.weight_decay < 0:
+        raise ValueError("learning-rate must be positive and weight-decay non-negative")
+    weight_names = [name for name in vars(args) if name.endswith("_weight")]
+    negative = [name for name in weight_names if getattr(args, name) < 0]
+    if negative:
+        raise ValueError(f"Loss weights must be non-negative: {negative}")
+    if args.stage == AdaptationStage.LUMINANCE.value:
+        if args.exposure_weight + args.percentile_weight + args.luma_distribution_weight <= 0:
+            raise ValueError("Luminance stage requires at least one style loss")
+    else:
+        if args.chroma_histogram_weight + args.chroma_moment_weight + args.saturation_weight <= 0:
+            raise ValueError("Chroma stage requires at least one chroma style loss")
 
 
 def main(argv: Optional[Iterable[str]] = None) -> int:
@@ -341,6 +353,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             "loss_weights": asdict(weights),
             "trainable_parameters": [name for name, parameter in model.named_parameters() if parameter.requires_grad],
             "best_validation_loss": best_loss,
+            "best_checkpoint_sha256": _sha256_file(output_dir / "best.pth"),
+            "last_checkpoint_sha256": _sha256_file(output_dir / "last.pth"),
         },
     )
     return 0
