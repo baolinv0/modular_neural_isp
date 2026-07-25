@@ -1,6 +1,7 @@
 name: Unpaired Photofinishing Style Adaptation
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - 'photofinishing/unpaired_style/**'
