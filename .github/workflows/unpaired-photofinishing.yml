@@ -23,6 +23,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install torch==2.5.1 numpy==1.26.4 opencv-python-headless==4.11.0.86 pytest
+      - run: pip install -q torch==2.5.1 numpy==1.26.4 opencv-python-headless==4.11.0.86 pytest
       - run: python -m compileall -q photofinishing
       - run: pytest -q tests/test_unpaired_*.py
