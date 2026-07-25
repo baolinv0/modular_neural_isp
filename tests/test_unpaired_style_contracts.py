@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from photofinishing.unpaired_style.contracts import (
+    Stage1LossWeights,
     StylePairRecord,
     TwoStageTrainingConfig,
     load_manifest,
@@ -40,3 +41,8 @@ def test_manifest_resolves_paths_and_rejects_scene_leakage(tmp_path):
 def test_config_rejects_non_positive_learning_rate():
   with pytest.raises(ValueError, match="stage1_learning_rate"):
     TwoStageTrainingConfig(stage1_learning_rate=0.0)
+
+
+def test_config_rejects_negative_loss_weight():
+  with pytest.raises(ValueError, match="stage1.exposure"):
+    TwoStageTrainingConfig(stage1=Stage1LossWeights(exposure=-1.0))
