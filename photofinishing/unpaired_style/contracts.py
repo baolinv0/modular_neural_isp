@@ -228,7 +228,7 @@ def validate_disjoint_manifests(
     train_records: Sequence[StylePairRecord],
     validation_records: Sequence[StylePairRecord],
 ) -> None:
-  """Fail if samples, scenes, or exact file identities cross the split boundary."""
+  """Fail if samples, scenes, or any exact image identity crosses the split boundary."""
   train_ids = {record.sample_id for record in train_records}
   val_ids = {record.sample_id for record in validation_records}
   if train_ids & val_ids:
@@ -237,7 +237,11 @@ def validate_disjoint_manifests(
   val_scenes = {record.scene_group for record in validation_records}
   if train_scenes & val_scenes:
     raise ValueError(f"scene groups cross train/validation: {sorted(train_scenes & val_scenes)}")
-  train_files = {(record.input_path, record.reference_path) for record in train_records}
-  val_files = {(record.input_path, record.reference_path) for record in validation_records}
-  if train_files & val_files:
-    raise ValueError("exact input/reference pairs cross train/validation")
+  train_inputs = {record.input_path for record in train_records}
+  val_inputs = {record.input_path for record in validation_records}
+  if train_inputs & val_inputs:
+    raise ValueError("input images cross train/validation")
+  train_references = {record.reference_path for record in train_records}
+  val_references = {record.reference_path for record in validation_records}
+  if train_references & val_references:
+    raise ValueError("reference images cross train/validation")
