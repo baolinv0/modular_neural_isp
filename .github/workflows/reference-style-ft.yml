@@ -6,6 +6,7 @@ on:
       - 'photofinishing/reference_style_*.py'
       - 'photofinishing/train_reference_style.py'
       - 'photofinishing/evaluate_reference_style.py'
+      - 'photofinishing/__init__.py'
       - 'tests/test_reference_style_*.py'
       - '.github/workflows/reference-style-ft.yml'
   push:
@@ -28,6 +29,7 @@ jobs:
       - name: Compile new modules
         run: |
           python -m compileall -q \
+            photofinishing/__init__.py \
             photofinishing/reference_style_data.py \
             photofinishing/reference_style_losses.py \
             photofinishing/reference_style_training.py \
@@ -37,7 +39,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          pytest -vv tests/test_reference_style_*.py \
+          python -m pytest -vv tests/test_reference_style_*.py \
             --junitxml=reference-style-junit.xml 2>&1 | tee reference-style-pytest.log
           status=${PIPESTATUS[0]}
           exit ${status}
