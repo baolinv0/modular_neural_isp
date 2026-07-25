@@ -25,4 +25,13 @@ jobs:
           python-version: '3.11'
       - run: pip install -q torch==2.5.1 numpy==1.26.4 opencv-python-headless==4.11.0.86 pytest
       - run: python -m compileall -q photofinishing
-      - run: pytest -q tests/test_unpaired_*.py
+      - name: Focused unit and training smoke tests
+        run: >-
+          pytest -q --tb=short
+          tests/test_unpaired_reference_data.py
+          tests/test_unpaired_style_losses.py
+          tests/test_unpaired_stage_control.py
+          tests/test_unpaired_training.py
+          tests/test_unpaired_cli.py
+      - name: Real Photofinishing interface canary
+        run: pytest -vv --tb=short tests/test_unpaired_real_interface.py
