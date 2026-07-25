@@ -1,0 +1,28 @@
+name: Unpaired Photofinishing
+
+on:
+  pull_request:
+    paths:
+      - 'photofinishing/unpaired_*.py'
+      - 'photofinishing/README_UNPAIRED_STYLE.md'
+      - 'tests/test_unpaired_*.py'
+      - '.github/workflows/unpaired-photofinishing.yml'
+  push:
+    branches:
+      - feature/unpaired-photofinishing-style
+    paths:
+      - 'photofinishing/unpaired_*.py'
+      - 'photofinishing/README_UNPAIRED_STYLE.md'
+      - 'tests/test_unpaired_*.py'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install torch==2.5.1 numpy==1.26.4 opencv-python-headless==4.11.0.86 pytest
+      - run: python -m compileall -q photofinishing
+      - run: pytest -q tests/test_unpaired_*.py
