@@ -1,8 +1,15 @@
 """Low-capacity chroma adaptation heads for the unpaired Stage-2 experiment."""
 from __future__ import annotations
 
+from enum import Enum
+
 import torch
 import torch.nn as nn
+
+
+class ChromaHead(str, Enum):
+    FULL_LUT = "full_lut"
+    AFFINE_RESIDUAL = "affine_residual"
 
 
 class FrozenLUTAffineResidual(nn.Module):
@@ -67,3 +74,25 @@ class FrozenLUTAffineResidual(nn.Module):
         adapted = torch.einsum("ij,bjhw->bihw", matrix, base_lut)
         adapted = adapted + bias.view(1, 2, 1, 1)
         return adapted.clamp(-0.5, 0.5)
+
+
+def configure_chroma_head(
+    model: nn.Module,
+    head: ChromaHead | str,
+    matrix_limit: float = 0.15,
+    bias_limit: float = 0.05,
+) -> nn.Module:
+    """Configures the model's Stage-2 chroma head in place."""
+    head = ChromaHead(head)
+    current = getattr(model, "_lut_net", None)
+    if current is None:
+        raise AttributeError("Model missing required module _lut_net")
+    if head is ChromaHead.FULL_LUT:
+        if isinstance(current, FrozenLUTAffineResidual):
+            raise ValueError("Cannot restore full_lut after affine wrapper construction")
+        return current
+    if isinstance(current, FrozenLUTAffineResidual):
+        return current
+    wrapped = FrozenLUTAffineResidual(current, matrix_limit=matrix_limit, bias_limit=bias_limit)
+    model._lut_net = wrapped
+    return wrapped
