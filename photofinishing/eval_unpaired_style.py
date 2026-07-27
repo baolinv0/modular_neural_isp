@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 sys.path.append(os.path.abspath(os.path.dirname(__file__) + "/.."))
 
 try:
-    from .train_unpaired_style import _forward_training, _load_model, _move_batch, _resolve_device
+    from .train_unpaired_style import _forward_training, _load_model, _move_batch, _resolve_device, _sha256_file
     from .unpaired_chroma_heads import ChromaHead, configure_chroma_head
     from .unpaired_reference_data import ReferenceStyleDataset
     from .unpaired_style_losses import (
@@ -23,7 +23,7 @@ try:
         luma_percentile_loss, saturation_distribution_loss,
     )
 except ImportError:
-    from train_unpaired_style import _forward_training, _load_model, _move_batch, _resolve_device
+    from train_unpaired_style import _forward_training, _load_model, _move_batch, _resolve_device, _sha256_file
     from unpaired_chroma_heads import ChromaHead, configure_chroma_head
     from unpaired_reference_data import ReferenceStyleDataset
     from unpaired_style_losses import (
@@ -52,17 +52,43 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _checkpoint_uses_affine_head(checkpoint: str | Path) -> bool:
+    checkpoint_path = Path(checkpoint).resolve()
+    if not checkpoint_path.is_file():
+        raise FileNotFoundError(f"Adapted checkpoint not found: {checkpoint_path}")
+    try:
+        state = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+    except Exception as exc:
+        raise ValueError(f"Cannot inspect adapted checkpoint structure: {checkpoint_path}") from exc
+    if isinstance(state, dict) and isinstance(state.get("state_dict"), dict):
+        state = state["state_dict"]
+    if not isinstance(state, dict):
+        raise ValueError(f"Adapted checkpoint must contain a state dict: {checkpoint_path}")
+    keys = {str(key) for key in state}
+    return (
+        "_lut_net.matrix_raw" in keys
+        or "_lut_net.bias_raw" in keys
+        or any(key.startswith("_lut_net.base_lut_net.") for key in keys)
+    )
+
+
 def _read_adapted_run_config(
     adapted_checkpoint: str,
     configured_path: Optional[str],
 ) -> Tuple[Dict[str, object], Optional[Path]]:
+    checkpoint_path = Path(adapted_checkpoint).resolve()
     if configured_path is not None:
         config_path = Path(configured_path).resolve()
         if not config_path.is_file():
             raise FileNotFoundError(f"Adapted run config not found: {config_path}")
     else:
-        candidate = Path(adapted_checkpoint).resolve().parent / "run_config.json"
+        candidate = checkpoint_path.parent / "run_config.json"
         if not candidate.is_file():
+            if _checkpoint_uses_affine_head(checkpoint_path):
+                raise FileNotFoundError(
+                    "affine checkpoint requires its run_config.json so the wrapper and bounds can be reconstructed: "
+                    f"{checkpoint_path}"
+                )
             return {"chroma_head": ChromaHead.FULL_LUT.value}, None
         config_path = candidate
 
@@ -86,6 +112,20 @@ def _read_adapted_run_config(
             raise ValueError(f"affine run config requires positive affine limits: {config_path}")
         payload["affine_matrix_limit"] = matrix_limit
         payload["affine_bias_limit"] = bias_limit
+
+    expected_hashes = {
+        payload.get("best_checkpoint_sha256"),
+        payload.get("last_checkpoint_sha256"),
+    } - {None, ""}
+    if head is ChromaHead.AFFINE_RESIDUAL and not expected_hashes:
+        raise ValueError(f"affine run config does not bind output checkpoint hashes: {config_path}")
+    if expected_hashes:
+        actual_hash = _sha256_file(checkpoint_path)
+        if actual_hash not in expected_hashes:
+            raise ValueError(
+                "Adapted checkpoint does not match the hashes recorded in "
+                f"{config_path}: {actual_hash}"
+            )
     return payload, config_path
 
 
