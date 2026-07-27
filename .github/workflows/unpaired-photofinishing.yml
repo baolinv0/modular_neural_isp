@@ -36,5 +36,6 @@ jobs:
           tests/test_unpaired_training.py
           tests/test_unpaired_cli.py
           tests/test_unpaired_chroma_heads.py
+          tests/test_unpaired_chroma_stage2.py
       - name: Real Photofinishing interface canary
         run: pytest -vv --tb=short tests/test_unpaired_real_interface.py
