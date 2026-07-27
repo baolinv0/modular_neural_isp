@@ -4,7 +4,7 @@
 
 **Goal:** Add a low-capacity Stage-2 mode that freezes the Stage-1 adaptive LuTNet and trains only a six-parameter global CbCr affine residual, while preserving the existing full-LUT mode as the default control.
 
-**Architecture:** A `FrozenLUTAffineResidual` wrapper owns the loaded Stage-1 `LuTNet`, keeps it frozen, and transforms its predicted `[B,2,H,W]` LUT with a bounded residual matrix and bias. Training and evaluation construct either the original full LUT path or the affine wrapper from an explicit `chroma_head` field, so both experiments share the same Stage-1 checkpoint, losses, data, and metrics.
+**Architecture:** A `FrozenLUTAffineResidual` wrapper owns the loaded Stage-1 `LuTNet`, keeps it frozen, and transforms its predicted `[B,2,H,W]` LUT with a bounded residual matrix and bias. Training and evaluation construct either the original full LUT path or the affine wrapper from an explicit `chroma_head` field, so both experiments share the same Stage-1 checkpoint, losses, data, and metrics. The wrapper does not add output clamping because the original LuTNet may produce values outside the nominal CbCr interval; identity initialization must preserve those values exactly.
 
 **Tech Stack:** Python 3.11, PyTorch 2.5.1, pytest, existing `PhotofinishingModule` and unpaired-style training code.
 
@@ -30,9 +30,9 @@
 - Consumes: an existing `nn.Module` with `forward(ycbcr) -> Tensor[B,2,L,L]` and `get_cbcr_lut_size()`.
 - Produces: `FrozenLUTAffineResidual(base_lut_net, matrix_limit=0.15, bias_limit=0.05)` with the same forward and LUT-size interface.
 
-- [ ] Write tests asserting identity-at-initialization, exactly six trainable scalars, frozen base parameters, bounded outputs, and gradient flow only to affine parameters.
+- [ ] Write tests asserting exact identity at initialization even for out-of-range base LUT values, exactly six trainable scalars, frozen base parameters, bounded affine parameters, and gradient flow only to affine parameters.
 - [ ] Run `pytest -q tests/test_unpaired_chroma_heads.py` and verify failure because the module does not exist.
-- [ ] Implement the wrapper using `A = I + matrix_limit * tanh(matrix_raw)` and `b = bias_limit * tanh(bias_raw)`, applying `A` and `b` to every point of the frozen base LUT and clamping to `[-0.5, 0.5]`.
+- [ ] Implement the wrapper using `A = I + matrix_limit * tanh(matrix_raw)` and `b = bias_limit * tanh(bias_raw)`, applying `A` and `b` to every point of the frozen base LUT without adding output clamping.
 - [ ] Re-run the focused tests and commit.
 
 ### Task 2: Stage-2 Construction and Trainable Scope
@@ -40,8 +40,7 @@
 **Files:**
 - Modify: `photofinishing/train_unpaired_style.py`
 - Modify: `photofinishing/unpaired_stage_control.py`
-- Modify: `tests/test_unpaired_stage_control.py`
-- Modify: `tests/test_unpaired_cli.py`
+- Test: `tests/test_unpaired_chroma_stage2.py`
 
 **Interfaces:**
 - Produces: `ChromaHead` enum values `full_lut` and `affine_residual`.
@@ -57,17 +56,17 @@
 ### Task 3: Checkpoint Loading and Evaluation
 
 **Files:**
-- Modify: `photofinishing/train_unpaired_style.py`
 - Modify: `photofinishing/eval_unpaired_style.py`
-- Modify: `tests/test_unpaired_cli.py`
+- Test: `tests/test_unpaired_eval_heads.py`
 
 **Interfaces:**
-- Produces: `_load_model(checkpoint, device, use_3d_lut, chroma_head='full_lut', base_checkpoint=None)`.
+- Produces: `_read_adapted_run_config(checkpoint, configured_path)`.
+- Produces: `_load_adapted_model(checkpoint, device, use_3d_lut, run_config)`.
 - Evaluation consumes an adapted `run_config.json` and reconstructs the correct head before strict checkpoint loading.
 
-- [ ] Add failing tests that affine adapted checkpoints require a run config, that full-LUT checkpoints remain loadable without one, and that an incompatible head/checkpoint combination fails closed.
+- [ ] Add failing tests that affine adapted checkpoints require a run config, that full-LUT checkpoints remain loadable without one, and that invalid head metadata fails closed.
 - [ ] Verify failures.
-- [ ] Extend model loading so affine Stage-2 training loads the Stage-1 checkpoint before wrapping, while affine evaluation wraps before loading the adapted state dict.
+- [ ] Load Stage-2 affine checkpoints by constructing the wrapper before strict state-dict loading; retain the original loader for full-LUT checkpoints.
 - [ ] Add `--adapted-run-config`, defaulting to the adapted checkpoint directory, and record the evaluated head in output JSON.
 - [ ] Re-run tests and commit.
 
@@ -82,7 +81,6 @@
 - Real Canary validates Stage-2 forward/backward behavior on `PhotofinishingModule` for both head modes.
 
 - [ ] Add a real-model test asserting affine iteration-0 output matches the Stage-1 model, only six affine parameters receive gradients, and the base LuTNet receives none.
-- [ ] Verify the new test fails before production integration is complete.
 - [ ] Document paired commands for `full_lut` and `affine_residual`, the fairness constraints, and result interpretation.
 - [ ] Run `python -m compileall -q photofinishing` and all `tests/test_unpaired_*.py`.
 - [ ] Push, create a Draft PR, and require GitHub Actions to pass both focused tests and the real-interface Canary.
