@@ -18,6 +18,7 @@ class FrozenLUTAffineResidual(nn.Module):
     The wrapped Stage-1 LuTNet preserves the source model's image-adaptive,
     nonlinear CbCr mapping. Only a 2x2 residual matrix and two-dimensional
     bias are trainable, so the adaptation capacity is exactly six scalars.
+    The base LUT output is not clamped, preserving exact iteration-0 parity.
     """
 
     def __init__(
@@ -37,11 +38,18 @@ class FrozenLUTAffineResidual(nn.Module):
             parameter.requires_grad = False
         self.base_lut_net.eval()
 
+        reference = next(self.base_lut_net.parameters(), None)
+        if reference is None:
+            reference = next(self.base_lut_net.buffers(), None)
+        factory_kwargs = {}
+        if reference is not None:
+            factory_kwargs = {"device": reference.device, "dtype": reference.dtype}
+
         self.matrix_limit = float(matrix_limit)
         self.bias_limit = float(bias_limit)
-        self.matrix_raw = nn.Parameter(torch.zeros(2, 2))
-        self.bias_raw = nn.Parameter(torch.zeros(2))
-        self.register_buffer("identity_matrix", torch.eye(2))
+        self.matrix_raw = nn.Parameter(torch.zeros((2, 2), **factory_kwargs))
+        self.bias_raw = nn.Parameter(torch.zeros(2, **factory_kwargs))
+        self.register_buffer("identity_matrix", torch.eye(2, **factory_kwargs))
 
     def get_cbcr_lut_size(self) -> int:
         return int(self.base_lut_net.get_cbcr_lut_size())
@@ -50,8 +58,7 @@ class FrozenLUTAffineResidual(nn.Module):
         return self.matrix_raw.numel() + self.bias_raw.numel()
 
     def effective_matrix(self) -> torch.Tensor:
-        identity = self.identity_matrix.to(device=self.matrix_raw.device, dtype=self.matrix_raw.dtype)
-        return identity + self.matrix_limit * torch.tanh(self.matrix_raw)
+        return self.identity_matrix + self.matrix_limit * torch.tanh(self.matrix_raw)
 
     def effective_bias(self) -> torch.Tensor:
         return self.bias_limit * torch.tanh(self.bias_raw)
@@ -72,8 +79,7 @@ class FrozenLUTAffineResidual(nn.Module):
         matrix = self.effective_matrix().to(device=base_lut.device, dtype=base_lut.dtype)
         bias = self.effective_bias().to(device=base_lut.device, dtype=base_lut.dtype)
         adapted = torch.einsum("ij,bjhw->bihw", matrix, base_lut)
-        adapted = adapted + bias.view(1, 2, 1, 1)
-        return adapted.clamp(-0.5, 0.5)
+        return adapted + bias.view(1, 2, 1, 1)
 
 
 def configure_chroma_head(
