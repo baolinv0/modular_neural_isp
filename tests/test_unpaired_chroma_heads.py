@@ -5,9 +5,10 @@ from photofinishing.unpaired_chroma_heads import FrozenLUTAffineResidual
 
 
 class TinyBaseLUT(nn.Module):
-    def __init__(self, lut_size: int = 4):
+    def __init__(self, lut_size: int = 4, scale: float = 1.0):
         super().__init__()
         self._lut_size = lut_size
+        self.scale = float(scale)
         self.weight = nn.Parameter(torch.tensor(0.0))
         coords = torch.linspace(-0.5, 0.5, lut_size)
         cb, cr = torch.meshgrid(coords, coords, indexing="ij")
@@ -17,16 +18,17 @@ class TinyBaseLUT(nn.Module):
         return self._lut_size
 
     def forward(self, ycbcr: torch.Tensor) -> torch.Tensor:
-        return self.identity.expand(ycbcr.shape[0], -1, -1, -1) + 0.0 * self.weight
+        return self.scale * self.identity.expand(ycbcr.shape[0], -1, -1, -1) + 0.0 * self.weight
 
 
-def test_affine_residual_is_identity_at_initialization():
-    base = TinyBaseLUT()
+def test_affine_residual_is_identity_at_initialization_even_outside_nominal_gamut():
+    base = TinyBaseLUT(scale=2.0)
     head = FrozenLUTAffineResidual(base)
     image = torch.rand(2, 3, 8, 8)
     with torch.no_grad():
         expected = base(image)
         actual = head(image)
+    assert expected.abs().max().item() > 0.5
     assert torch.equal(actual, expected)
 
 
@@ -56,11 +58,12 @@ def test_affine_residual_gradients_reach_only_six_parameters():
     assert all(parameter.grad is None for parameter in head.base_lut_net.parameters())
 
 
-def test_affine_residual_output_is_bounded_to_cbcr_domain():
-    head = FrozenLUTAffineResidual(TinyBaseLUT(), matrix_limit=2.0, bias_limit=2.0)
+def test_affine_parameters_are_bounded_without_clamping_base_lut():
+    head = FrozenLUTAffineResidual(TinyBaseLUT(), matrix_limit=0.15, bias_limit=0.05)
     with torch.no_grad():
-        head.matrix_raw.fill_(10.0)
-        head.bias_raw.fill_(10.0)
-    output = head(torch.rand(1, 3, 8, 8))
-    assert output.min().item() >= -0.5
-    assert output.max().item() <= 0.5
+        head.matrix_raw.fill_(100.0)
+        head.bias_raw.fill_(100.0)
+    matrix_delta = head.effective_matrix() - torch.eye(2)
+    bias = head.effective_bias()
+    assert matrix_delta.abs().max().item() <= 0.150001
+    assert bias.abs().max().item() <= 0.050001
