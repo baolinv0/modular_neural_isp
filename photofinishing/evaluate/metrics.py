@@ -87,9 +87,7 @@ def _sliced_wasserstein_2d(
         return float("nan")
     angles = np.linspace(0.0, math.pi, directions, endpoint=False, dtype=np.float64)
     unit = np.stack([np.cos(angles), np.sin(angles)], axis=1)
-    distances = []
-    for direction in unit:
-        distances.append(_wasserstein_1d(first @ direction, second @ direction))
+    distances = [_wasserstein_1d(first @ direction, second @ direction) for direction in unit]
     return float(np.nanmean(distances))
 
 
@@ -169,7 +167,9 @@ def _conditioned_chroma_swd(
         ref_band = reference_mask & (reference_y >= lower) & (reference_y < upper)
         if np.count_nonzero(out_band) < 8 or np.count_nonzero(ref_band) < 8:
             continue
-        values.append(_sliced_wasserstein_2d(_masked_chroma(output_cbcr, out_band), _masked_chroma(reference_cbcr, ref_band)))
+        values.append(_sliced_wasserstein_2d(
+            _masked_chroma(output_cbcr, out_band), _masked_chroma(reference_cbcr, ref_band)
+        ))
     return float(np.mean(values)) if values else float("nan")
 
 
@@ -229,16 +229,23 @@ def compute_color_metrics(
 
     input_semantic_masks = dict(input_semantic_masks or {})
     reference_semantic_masks = dict(reference_semantic_masks or {})
+    area_gaps: list[float] = []
     for semantic in _SEMANTIC_NAMES:
         output_semantic = input_semantic_masks.get(semantic)
         reference_semantic = reference_semantic_masks.get(semantic)
         if output_semantic is None or reference_semantic is None:
             metrics[f"semantic_{semantic}_lab_swd"] = float("nan")
+            metrics[f"semantic_{semantic}_area_gap"] = float("nan")
             continue
         output_semantic = _mask_or_all(output_semantic, output.shape[:2], f"input_{semantic}_mask") & output_valid
         reference_semantic = _mask_or_all(
             reference_semantic, reference.shape[:2], f"reference_{semantic}_mask"
         ) & reference_valid
+        output_fraction = float(np.count_nonzero(output_semantic) / np.count_nonzero(output_valid))
+        reference_fraction = float(np.count_nonzero(reference_semantic) / np.count_nonzero(reference_valid))
+        area_gap = abs(output_fraction - reference_fraction)
+        metrics[f"semantic_{semantic}_area_gap"] = area_gap
+        area_gaps.append(area_gap)
         if np.count_nonzero(output_semantic) < 8 or np.count_nonzero(reference_semantic) < 8:
             metrics[f"semantic_{semantic}_lab_swd"] = float("nan")
             continue
@@ -246,6 +253,7 @@ def compute_color_metrics(
             output_lab_image[output_semantic, 1:3].reshape(-1, 2),
             reference_lab_image[reference_semantic, 1:3].reshape(-1, 2),
         )
+    metrics["semantic_composition_max_gap"] = max(area_gaps) if area_gaps else float("nan")
     return metrics
 
 
