@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "groups": [
+    {
+      "name": "seed42",
+      "pretrained": {
+        "checkpoint": "../runs/pretrained/base_color_s24lut_ladder_gpu6_best.pth",
+        "use_3d_lut": false
+      },
+      "stage1": {
+        "checkpoint": "../runs/stage1_seed42/best.pth",
+        "use_3d_lut": false
+      },
+      "stage2": [
+        {
+          "name": "affine_residual",
+          "checkpoint": "../runs/stage2_affine_seed42/best.pth",
+          "run_config": "../runs/stage2_affine_seed42/run_config.json",
+          "use_3d_lut": false
+        },
+        {
+          "name": "full_lut",
+          "checkpoint": "../runs/stage2_full_lut_seed42/best.pth",
+          "run_config": "../runs/stage2_full_lut_seed42/run_config.json",
+          "use_3d_lut": false
+        }
+      ]
+    },
+    {
+      "name": "seed123",
+      "pretrained": {
+        "checkpoint": "../runs/pretrained/base_color_s24lut_ladder_gpu6_best.pth",
+        "use_3d_lut": false
+      },
+      "stage1": {
+        "checkpoint": "../runs/stage1_seed123/best.pth",
+        "use_3d_lut": false
+      },
+      "stage2": [
+        {
+          "name": "affine_residual",
+          "checkpoint": "../runs/stage2_affine_seed123/best.pth",
+          "run_config": "../runs/stage2_affine_seed123/run_config.json",
+          "use_3d_lut": false
+        },
+        {
+          "name": "full_lut",
+          "checkpoint": "../runs/stage2_full_lut_seed123/best.pth",
+          "run_config": "../runs/stage2_full_lut_seed123/run_config.json",
+          "use_3d_lut": false
+        }
+      ]
+    }
+  ]
+}
