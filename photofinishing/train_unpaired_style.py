@@ -1,8 +1,8 @@
 """Two-stage same-scene non-pixel-aligned photofinishing adaptation.
 
 Stage 1 trains only GainNet + GlobalToneMappingNet using luminance statistics.
-Stage 2 loads the Stage-1 checkpoint, freezes the luminance path, and trains
-only LuTNet using chroma statistics plus frozen Stage-1 preservation.
+Stage 2 loads the Stage-1 checkpoint, freezes the luminance path, and either
+fine-tunes the full LuTNet or trains a six-parameter affine chroma residual.
 """
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ from torch.utils.data import DataLoader
 sys.path.append(os.path.abspath(os.path.dirname(__file__) + "/.."))
 
 try:
+    from .unpaired_chroma_heads import ChromaHead, FrozenLUTAffineResidual, configure_chroma_head
     from .unpaired_reference_data import ReferenceStyleDataset
     from .unpaired_stage_control import (
         AdaptationStage, ParameterAnchor, assert_trainable_scope, configure_trainable_scope, set_stage_train_mode,
@@ -32,6 +33,7 @@ try:
     )
     from .unpaired_style_losses import Stage1LossWeights, Stage1UnpairedLoss, Stage2LossWeights, Stage2UnpairedLoss
 except ImportError:  # direct execution from photofinishing/
+    from unpaired_chroma_heads import ChromaHead, FrozenLUTAffineResidual, configure_chroma_head
     from unpaired_reference_data import ReferenceStyleDataset
     from unpaired_stage_control import (
         AdaptationStage, ParameterAnchor, assert_trainable_scope, configure_trainable_scope, set_stage_train_mode,
@@ -74,8 +76,9 @@ def train_epoch(
     device: torch.device,
     parameter_anchor: Optional[ParameterAnchor] = None,
     frozen_stage1_model: Optional[torch.nn.Module] = None,
+    chroma_head: ChromaHead | str = ChromaHead.FULL_LUT,
 ) -> Dict[str, float]:
-    set_stage_train_mode(model, stage)
+    set_stage_train_mode(model, stage, chroma_head)
     totals: Dict[str, float] = {"total": 0.0}
     count = 0
     for batch in loader:
@@ -114,8 +117,13 @@ def validate_epoch(
     device: torch.device,
     parameter_anchor: Optional[ParameterAnchor] = None,
     frozen_stage1_model: Optional[torch.nn.Module] = None,
+    chroma_head: ChromaHead | str = ChromaHead.FULL_LUT,
 ) -> Dict[str, float]:
     model.eval()
+    if stage is AdaptationStage.CHROMA and ChromaHead(chroma_head) is ChromaHead.AFFINE_RESIDUAL:
+        if not isinstance(getattr(model, "_lut_net", None), FrozenLUTAffineResidual):
+            raise TypeError("affine_residual requires FrozenLUTAffineResidual")
+        model._lut_net.base_lut_net.eval()
     totals: Dict[str, float] = {"total": 0.0}
     count = 0
     for batch in loader:
@@ -144,6 +152,12 @@ def validate_epoch(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Same-scene non-pixel-aligned photofinishing adaptation")
     parser.add_argument("--stage", choices=[stage.value for stage in AdaptationStage], required=True)
+    parser.add_argument(
+        "--chroma-head",
+        choices=[head.value for head in ChromaHead],
+        default=ChromaHead.FULL_LUT.value,
+        help="Stage-2 capacity: full adaptive LuTNet or frozen LuTNet plus six-parameter affine residual",
+    )
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--load", required=True, help="Source checkpoint for luminance; Stage-1 checkpoint for chroma")
     parser.add_argument("--output-dir", required=True)
@@ -252,6 +266,8 @@ def _validate_arguments(args: argparse.Namespace) -> None:
     if negative:
         raise ValueError(f"Loss weights must be non-negative: {negative}")
     if args.stage == AdaptationStage.LUMINANCE.value:
+        if args.chroma_head != ChromaHead.FULL_LUT.value:
+            raise ValueError("--chroma-head is only valid for chroma stage")
         if args.exposure_weight + args.percentile_weight + args.luma_distribution_weight <= 0:
             raise ValueError("Luminance stage requires at least one style loss")
     else:
@@ -265,6 +281,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     set_deterministic(args.seed)
     device = _resolve_device(args.device)
     stage = AdaptationStage(args.stage)
+    chroma_head = ChromaHead(args.chroma_head)
 
     stage1_config_path = None
     if stage is AdaptationStage.CHROMA:
@@ -275,9 +292,10 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         frozen_stage1_model = copy.deepcopy(model).eval()
         for parameter in frozen_stage1_model.parameters():
             parameter.requires_grad = False
+        configure_chroma_head(model, chroma_head)
 
-    configure_trainable_scope(model, stage)
-    assert_trainable_scope(model, stage)
+    configure_trainable_scope(model, stage, chroma_head)
+    assert_trainable_scope(model, stage, chroma_head)
     parameter_anchor = ParameterAnchor(model) if stage is AdaptationStage.LUMINANCE else None
 
     train_set = ReferenceStyleDataset(args.manifest, args.train_split, args.image_size, args.input_mode)
@@ -319,10 +337,10 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
     for epoch in range(1, args.epochs + 1):
         train_metrics = train_epoch(
-            model, train_loader, optimizer, stage, loss_fn, device, parameter_anchor, frozen_stage1_model
+            model, train_loader, optimizer, stage, loss_fn, device, parameter_anchor, frozen_stage1_model, chroma_head
         )
         validation_metrics = validate_epoch(
-            model, validation_loader, stage, loss_fn, device, parameter_anchor, frozen_stage1_model
+            model, validation_loader, stage, loss_fn, device, parameter_anchor, frozen_stage1_model, chroma_head
         )
         record = {"epoch": epoch, "train": train_metrics, "validation": validation_metrics}
         history.append(record)
@@ -335,10 +353,18 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             torch.save(model.state_dict(), output_dir / "best.pth")
         _write_json(output_dir / "history.json", {"records": history})
 
+    trainable_names = [name for name, parameter in model.named_parameters() if parameter.requires_grad]
+    head_config: Dict[str, object] = {"chroma_head": chroma_head.value}
+    if isinstance(getattr(model, "_lut_net", None), FrozenLUTAffineResidual):
+        head_config.update({
+            "affine_matrix_limit": model._lut_net.matrix_limit,
+            "affine_bias_limit": model._lut_net.bias_limit,
+        })
     _write_json(
         output_dir / "run_config.json",
         {
             "stage": stage.value,
+            **head_config,
             "source_checkpoint": str(Path(args.load).resolve()),
             "source_checkpoint_sha256": _sha256_file(args.load),
             "stage1_run_config": str(stage1_config_path) if stage1_config_path else None,
@@ -351,7 +377,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             "use_3d_lut": args.use_3d_lut,
             "seed": args.seed,
             "loss_weights": asdict(weights),
-            "trainable_parameters": [name for name, parameter in model.named_parameters() if parameter.requires_grad],
+            "trainable_parameters": trainable_names,
+            "trainable_parameter_count": sum(parameter.numel() for parameter in model.parameters() if parameter.requires_grad),
             "best_validation_loss": best_loss,
             "best_checkpoint_sha256": _sha256_file(output_dir / "best.pth"),
             "last_checkpoint_sha256": _sha256_file(output_dir / "last.pth"),

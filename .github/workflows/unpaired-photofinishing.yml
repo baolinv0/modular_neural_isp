@@ -4,16 +4,20 @@ on:
   pull_request:
     paths:
       - 'photofinishing/unpaired_*.py'
+      - 'photofinishing/evaluate/**'
       - 'photofinishing/README_UNPAIRED_STYLE.md'
       - 'tests/test_unpaired_*.py'
       - '.github/workflows/unpaired-photofinishing.yml'
   push:
     branches:
       - feature/unpaired-photofinishing-style
+      - feature/unpaired-photofinishing-affine-chroma
     paths:
       - 'photofinishing/unpaired_*.py'
+      - 'photofinishing/evaluate/**'
       - 'photofinishing/README_UNPAIRED_STYLE.md'
       - 'tests/test_unpaired_*.py'
+      - '.github/workflows/unpaired-photofinishing.yml'
 
 jobs:
   test:
@@ -35,5 +39,10 @@ jobs:
           tests/test_unpaired_stage_control.py
           tests/test_unpaired_training.py
           tests/test_unpaired_cli.py
+          tests/test_unpaired_chroma_heads.py
+          tests/test_unpaired_chroma_stage2.py
+          tests/test_unpaired_eval_heads.py
+      - name: Non-aligned evaluation tests
+        run: pytest -q --tb=short photofinishing/evaluate/tests
       - name: Real Photofinishing interface canary
         run: pytest -vv --tb=short tests/test_unpaired_real_interface.py

@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, Optional, Tuple
 
 import torch
 from torch.utils.data import DataLoader
@@ -14,14 +15,16 @@ from torch.utils.data import DataLoader
 sys.path.append(os.path.abspath(os.path.dirname(__file__) + "/.."))
 
 try:
-    from .train_unpaired_style import _forward_training, _load_model, _move_batch, _resolve_device
+    from .train_unpaired_style import _forward_training, _load_model, _move_batch, _resolve_device, _sha256_file
+    from .unpaired_chroma_heads import ChromaHead, configure_chroma_head
     from .unpaired_reference_data import ReferenceStyleDataset
     from .unpaired_style_losses import (
         chroma_histogram_loss, chroma_moment_loss, log_exposure_loss, luma_distribution_loss,
         luma_percentile_loss, saturation_distribution_loss,
     )
 except ImportError:
-    from train_unpaired_style import _forward_training, _load_model, _move_batch, _resolve_device
+    from train_unpaired_style import _forward_training, _load_model, _move_batch, _resolve_device, _sha256_file
+    from unpaired_chroma_heads import ChromaHead, configure_chroma_head
     from unpaired_reference_data import ReferenceStyleDataset
     from unpaired_style_losses import (
         chroma_histogram_loss, chroma_moment_loss, log_exposure_loss, luma_distribution_loss,
@@ -35,6 +38,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--split", default="test")
     parser.add_argument("--baseline-load", required=True)
     parser.add_argument("--adapted-load", required=True)
+    parser.add_argument(
+        "--adapted-run-config",
+        default=None,
+        help="Adapted run_config.json; defaults to the directory beside --adapted-load",
+    )
     parser.add_argument("--output", required=True)
     parser.add_argument("--input-mode", choices=["linear_srgb", "raw_metadata"], default="linear_srgb")
     parser.add_argument("--image-size", type=int, default=512)
@@ -42,6 +50,110 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda", "mps"])
     parser.add_argument("--use-3d-lut", action="store_true")
     return parser
+
+
+def _checkpoint_uses_affine_head(checkpoint: str | Path) -> bool:
+    checkpoint_path = Path(checkpoint).resolve()
+    if not checkpoint_path.is_file():
+        raise FileNotFoundError(f"Adapted checkpoint not found: {checkpoint_path}")
+    try:
+        state = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+    except Exception as exc:
+        raise ValueError(f"Cannot inspect adapted checkpoint structure: {checkpoint_path}") from exc
+    if isinstance(state, dict) and isinstance(state.get("state_dict"), dict):
+        state = state["state_dict"]
+    if not isinstance(state, dict):
+        raise ValueError(f"Adapted checkpoint must contain a state dict: {checkpoint_path}")
+    keys = {str(key) for key in state}
+    return (
+        "_lut_net.matrix_raw" in keys
+        or "_lut_net.bias_raw" in keys
+        or any(key.startswith("_lut_net.base_lut_net.") for key in keys)
+    )
+
+
+def _read_adapted_run_config(
+    adapted_checkpoint: str,
+    configured_path: Optional[str],
+) -> Tuple[Dict[str, object], Optional[Path]]:
+    checkpoint_path = Path(adapted_checkpoint).resolve()
+    if configured_path is not None:
+        config_path = Path(configured_path).resolve()
+        if not config_path.is_file():
+            raise FileNotFoundError(f"Adapted run config not found: {config_path}")
+    else:
+        candidate = checkpoint_path.parent / "run_config.json"
+        if not candidate.is_file():
+            if _checkpoint_uses_affine_head(checkpoint_path):
+                raise FileNotFoundError(
+                    "affine checkpoint requires its run_config.json so the wrapper and bounds can be reconstructed: "
+                    f"{checkpoint_path}"
+                )
+            return {"chroma_head": ChromaHead.FULL_LUT.value}, None
+        config_path = candidate
+
+    payload: Dict[str, object] = json.loads(config_path.read_text(encoding="utf-8"))
+    raw_head = str(payload.get("chroma_head", ChromaHead.FULL_LUT.value))
+    try:
+        head = ChromaHead(raw_head)
+    except ValueError as exc:
+        raise ValueError(f"unknown chroma_head in {config_path}: {raw_head}") from exc
+    payload["chroma_head"] = head.value
+
+    if head is ChromaHead.AFFINE_RESIDUAL:
+        if payload.get("stage") != "chroma":
+            raise ValueError(f"affine_residual run config must be a chroma-stage run: {config_path}")
+        try:
+            matrix_limit = float(payload["affine_matrix_limit"])
+            bias_limit = float(payload["affine_bias_limit"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(f"affine run config is missing valid limits: {config_path}") from exc
+        if not math.isfinite(matrix_limit) or not math.isfinite(bias_limit) or matrix_limit <= 0 or bias_limit <= 0:
+            raise ValueError(f"affine run config requires positive affine limits: {config_path}")
+        payload["affine_matrix_limit"] = matrix_limit
+        payload["affine_bias_limit"] = bias_limit
+
+    expected_hashes = {
+        payload.get("best_checkpoint_sha256"),
+        payload.get("last_checkpoint_sha256"),
+    } - {None, ""}
+    if head is ChromaHead.AFFINE_RESIDUAL and not expected_hashes:
+        raise ValueError(f"affine run config does not bind output checkpoint hashes: {config_path}")
+    if expected_hashes:
+        actual_hash = _sha256_file(checkpoint_path)
+        if actual_hash not in expected_hashes:
+            raise ValueError(
+                "Adapted checkpoint does not match the hashes recorded in "
+                f"{config_path}: {actual_hash}"
+            )
+    return payload, config_path
+
+
+def _load_adapted_model(
+    checkpoint: str,
+    device: torch.device,
+    use_3d_lut: bool,
+    run_config: Dict[str, object],
+) -> torch.nn.Module:
+    head = ChromaHead(str(run_config.get("chroma_head", ChromaHead.FULL_LUT.value)))
+    if head is ChromaHead.FULL_LUT:
+        return _load_model(checkpoint, device, use_3d_lut)
+
+    try:
+        from .photofinishing_model import PhotofinishingModule
+    except ImportError:
+        from photofinishing_model import PhotofinishingModule
+
+    model = PhotofinishingModule(device=device, use_3d_lut=use_3d_lut)
+    configure_chroma_head(
+        model,
+        head,
+        matrix_limit=float(run_config["affine_matrix_limit"]),
+        bias_limit=float(run_config["affine_bias_limit"]),
+    )
+    state = torch.load(checkpoint, map_location=device, weights_only=True)
+    model.load_state_dict(state, strict=True)
+    return model.to(device)
 
 
 def _metrics(output: torch.Tensor, reference: torch.Tensor) -> Dict[str, float]:
@@ -60,7 +172,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     args = build_parser().parse_args(argv)
     device = _resolve_device(args.device)
     baseline = _load_model(args.baseline_load, device, args.use_3d_lut).eval()
-    adapted = _load_model(args.adapted_load, device, args.use_3d_lut).eval()
+    adapted_config, adapted_config_path = _read_adapted_run_config(args.adapted_load, args.adapted_run_config)
+    adapted = _load_adapted_model(args.adapted_load, device, args.use_3d_lut, adapted_config).eval()
     dataset = ReferenceStyleDataset(args.manifest, args.split, args.image_size, args.input_mode)
     loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=args.num_workers)
     sample_metrics = []
@@ -89,6 +202,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     payload = {
         "split": args.split,
         "num_samples": count,
+        "adapted_chroma_head": adapted_config["chroma_head"],
+        "adapted_run_config": str(adapted_config_path) if adapted_config_path else None,
         "baseline_mean": baseline_mean,
         "adapted_mean": adapted_mean,
         "mean_improvement": {name: baseline_mean[name] - adapted_mean[name] for name in baseline_mean},
