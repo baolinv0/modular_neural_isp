@@ -55,14 +55,14 @@ def test_color_metrics_detect_chroma_shift_without_luminance_shift():
     assert color["luminance_conditioned_cbcr_swd"] > 0.01
 
 
-def test_semantic_metrics_use_separate_non_aligned_masks():
+def test_semantic_metrics_use_separate_non_aligned_masks_and_report_composition_gap():
     reference = _constant_linear(0.2)
     output = reference.copy()
     output[:, :16, 0] = np.clip(output[:, :16, 0] + 0.2, 0, 1)
     input_skin = np.zeros((32, 32), bool)
     reference_skin = np.zeros((32, 32), bool)
     input_skin[:, :16] = True
-    reference_skin[:, 16:] = True
+    reference_skin[:, 16:24] = True
     metrics = compute_color_metrics(
         output,
         reference,
@@ -70,4 +70,6 @@ def test_semantic_metrics_use_separate_non_aligned_masks():
         reference_semantic_masks={"skin": reference_skin},
     )
     assert metrics["semantic_skin_lab_swd"] > 0
+    assert 0.24 < metrics["semantic_skin_area_gap"] < 0.26
+    assert metrics["semantic_composition_max_gap"] == metrics["semantic_skin_area_gap"]
     assert np.isnan(metrics["semantic_sky_lab_swd"])
