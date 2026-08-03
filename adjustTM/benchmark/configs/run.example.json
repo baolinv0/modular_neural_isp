@@ -1,0 +1,62 @@
+{
+  "commands": {
+    "manifest": [
+      "python", "-m", "adjustTM.benchmark.build_manifest",
+      "--input-dir", "/data/test/input_linear",
+      "--gt-root", "/data/test/gt_levels",
+      "--scene-list", "/data/splits/test_scenes.json",
+      "--output", "/runs/run_001/manifest.json"
+    ],
+    "generate": [
+      "python", "-m", "adjustTM.benchmark.generate_outputs",
+      "--manifest", "/runs/run_001/manifest.json",
+      "--protocol", "/runs/run_001/protocol.json",
+      "--methods", "/runs/run_001/methods.json",
+      "--output-root", "/runs/run_001/outputs",
+      "--device", "cuda"
+    ],
+    "reference": [
+      "python", "-m", "adjustTM.benchmark.evaluate_reference",
+      "--manifest", "/runs/run_001/manifest.json",
+      "--output-root", "/runs/run_001/outputs",
+      "--methods", "frozen_baseline", "exposure_global", "gamma_global", "param_residual", "parallel_adapter", "film", "dual_lora", "exposure_oracle", "gamma_oracle",
+      "--output", "/runs/run_001/metrics/reference_records.jsonl",
+      "--trajectory-output", "/runs/run_001/metrics/trajectory_records.jsonl",
+      "--device", "cuda"
+    ],
+    "control": [
+      "python", "-m", "adjustTM.benchmark.evaluate_control",
+      "--dense-records", "/runs/run_001/outputs/dense_control_records.jsonl",
+      "--output", "/runs/run_001/metrics/control_records.jsonl"
+    ],
+    "compare": [
+      "python", "-m", "adjustTM.benchmark.compare_methods",
+      "--reference-records", "/runs/run_001/metrics/reference_records.jsonl",
+      "--control-records", "/runs/run_001/metrics/control_records.jsonl",
+      "--main-methods", "frozen_baseline", "exposure_global", "gamma_global", "param_residual", "parallel_adapter", "film", "dual_lora",
+      "--diagnostic-methods", "exposure_oracle", "gamma_oracle",
+      "--comparison-baselines", "frozen_baseline", "exposure_global", "gamma_global",
+      "--protocol", "/runs/run_001/protocol.json",
+      "--output", "/runs/run_001/statistics/summary.json"
+    ],
+    "gallery": [
+      "python", "-m", "adjustTM.benchmark.build_case_gallery",
+      "--manifest", "/runs/run_001/manifest.json",
+      "--output-root", "/runs/run_001/outputs",
+      "--reference-records", "/runs/run_001/metrics/reference_records.jsonl",
+      "--dense-records", "/runs/run_001/outputs/dense_control_records.jsonl",
+      "--control-records", "/runs/run_001/metrics/control_records.jsonl",
+      "--methods", "frozen_baseline", "exposure_global", "gamma_global", "param_residual", "parallel_adapter", "film", "dual_lora",
+      "--focus-method", "film",
+      "--comparison-baseline", "gamma_global",
+      "--asset-mode", "copy",
+      "--output-dir", "/runs/run_001/qualitative"
+    ],
+    "report": [
+      "python", "-m", "adjustTM.benchmark.report",
+      "--summary", "/runs/run_001/statistics/summary.json",
+      "--visual-gallery", "/runs/run_001/qualitative/index.html",
+      "--output-dir", "/runs/run_001/report"
+    ]
+  }
+}
