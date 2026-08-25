@@ -1,0 +1,29 @@
+labels:
+  background: 0
+  face: 1
+  skin: 2
+weights:
+  exposure: 0.20
+  dynamic_range: 0.20
+  face_tone: 0.25
+  face_background: 0.15
+  naturalness: 0.20
+guards:
+  face_clip_reject: 0.10
+  face_dark_reject: 0.35
+  global_clip_reject: 0.20
+  halo_reject: 0.20
+  skin_chroma_min: 4.0
+  skin_chroma_max: 55.0
+  pool_outlier_z: 3.5
+thresholds:
+  certified_score: 82.0
+  usable_score: 65.0
+  qwen_reject_confidence: 0.75
+vlm:
+  enabled: true
+  base_url: http://127.0.0.1:8000/v1
+  model: qwen3.8
+  timeout_s: 60
+  max_tokens: 300
+  temperature: 0.0
