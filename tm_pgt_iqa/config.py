@@ -50,12 +50,22 @@ class VLMConfig:
 
 
 @dataclass
+class SemanticConfig:
+    enabled: bool = True
+    top_k: int = 5
+    reject_confidence: float = 0.80
+    pairwise_min_confidence: float = 0.65
+    equivalent_margin: float = 1.0
+
+
+@dataclass
 class IQAConfig:
     labels: LabelConfig = field(default_factory=LabelConfig)
     weights: ScoreWeights = field(default_factory=ScoreWeights)
     guards: GuardConfig = field(default_factory=GuardConfig)
     thresholds: ThresholdConfig = field(default_factory=ThresholdConfig)
     vlm: VLMConfig = field(default_factory=VLMConfig)
+    semantic: SemanticConfig = field(default_factory=SemanticConfig)
 
     def to_dict(self) -> dict:
         return asdict(self)
