@@ -27,3 +27,9 @@ vlm:
   timeout_s: 60
   max_tokens: 300
   temperature: 0.0
+semantic:
+  enabled: true
+  top_k: 5
+  reject_confidence: 0.80
+  pairwise_min_confidence: 0.65
+  equivalent_margin: 1.0
