@@ -10,6 +10,66 @@ class LabelConfig:
     background: int = 0
     face: int = 1
     skin: int = 2
+    human: int = 3
+
+
+@dataclass
+class RetinexConfig:
+    gaussian_radius: float = 31.0
+    eps: float = 1e-4
+    levels_ev: dict[str, float] = field(default_factory=lambda: {
+        "a_m30": -0.45,
+        "a_m20": -0.30,
+        "a_m10": -0.15,
+        "a_000": 0.00,
+        "a_p10": 0.15,
+        "a_p20": 0.30,
+        "a_p30": 0.45,
+        "a_p40": 0.60,
+    })
+
+
+@dataclass
+class LocalFaceTMConfig:
+    lift_ev: dict[str, float] = field(default_factory=lambda: {
+        "low": 0.30,
+        "mid": 0.60,
+        "high": 0.90,
+    })
+    dilation_radius: int = 8
+    smoothing_radius: float = 4.0
+
+
+@dataclass
+class ToneShapeConfig:
+    median_ev_tolerance: float = 0.10
+    shadow_preserve_gamma: float = 1.12
+    soft_highlight_gamma: float = 0.88
+    smoothing_radius: float = 3.0
+
+
+@dataclass
+class GainConfig:
+    max_gain: float = 4.0
+    max_clip_ratio: float = 0.01
+    search_steps: int = 24
+
+
+@dataclass
+class QwenEditConfig:
+    enabled: bool = False
+    base_url: str | None = None
+    model: str | None = None
+    timeout_s: float = 120.0
+
+
+@dataclass
+class CandidateGenerationConfig:
+    retinex: RetinexConfig = field(default_factory=RetinexConfig)
+    local_face_tm: LocalFaceTMConfig = field(default_factory=LocalFaceTMConfig)
+    tone_shape: ToneShapeConfig = field(default_factory=ToneShapeConfig)
+    gain: GainConfig = field(default_factory=GainConfig)
+    qwen_edit: QwenEditConfig = field(default_factory=QwenEditConfig)
 
 
 @dataclass
@@ -66,6 +126,7 @@ class IQAConfig:
     thresholds: ThresholdConfig = field(default_factory=ThresholdConfig)
     vlm: VLMConfig = field(default_factory=VLMConfig)
     semantic: SemanticConfig = field(default_factory=SemanticConfig)
+    candidate_generation: CandidateGenerationConfig = field(default_factory=CandidateGenerationConfig)
 
     def to_dict(self) -> dict:
         return asdict(self)
