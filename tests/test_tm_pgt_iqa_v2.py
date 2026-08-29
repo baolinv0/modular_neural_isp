@@ -2,10 +2,18 @@ from __future__ import annotations
 
 import json
 import numpy as np
+from PIL import Image
 
 from tm_pgt_iqa.candidate_generation import generate_pool, write_pool
-from tm_pgt_iqa.config import IQAConfig
-from tm_pgt_iqa.metrics import luminance
+from tm_pgt_iqa.config import IQAConfig, load_config
+from tm_pgt_iqa.evaluator import TMPGTEvaluator
+from tm_pgt_iqa.metrics import (
+    evaluate_guards,
+    evaluate_source_preservation,
+    extract_features,
+    luminance,
+    score_features,
+)
 from tm_pgt_iqa.segmentation import SemanticMasks
 
 
@@ -141,3 +149,116 @@ def test_supplied_derived_mask_shape_must_match_base_mask():
         assert "face_core" in str(error)
     else:
         raise AssertionError("mismatched derived mask shape should fail")
+
+
+def test_global_brightening_increases_face_exposure_score():
+    source, masks = _scene()
+    darker = np.clip(source * 0.55, 0.0, 1.0)
+    brighter = np.clip(source * 1.45, 0.0, 1.0)
+    cfg = IQAConfig()
+    dark_quality = score_features(extract_features(darker, masks), cfg.weights)
+    bright_quality = score_features(extract_features(brighter, masks), cfg.weights)
+    assert bright_quality.exposure > dark_quality.exposure
+
+
+def test_flat_face_reduces_face_tone_score():
+    source, masks = _scene()
+    flat = source.copy()
+    flat[masks.face] = np.median(source[masks.face], axis=0)
+    cfg = IQAConfig()
+    structured_quality = score_features(extract_features(source, masks), cfg.weights)
+    flat_quality = score_features(extract_features(flat, masks), cfg.weights)
+    assert flat_quality.face_tone < structured_quality.face_tone
+
+
+def test_clipping_guard_remains_a_hard_failure():
+    source, masks = _scene()
+    clipped = source.copy()
+    clipped[masks.face] = 1.0
+    guards = evaluate_guards(extract_features(clipped, masks), IQAConfig().guards)
+    assert not guards.passed
+    assert "FACE_HIGHLIGHT_CLIP" in guards.failures
+
+
+def test_feature_clip_and_dark_ratios_use_guard_config_thresholds():
+    source, masks = _scene()
+    source[masks.face] = 0.80
+    cfg = IQAConfig()
+    # Thresholds apply to linear-RGB luminance, not display-referred sRGB.
+    cfg.guards.face_highlight_threshold = 0.55
+    cfg.guards.face_dark_threshold = 0.65
+    features = extract_features(source, masks, cfg.guards)
+    assert features.face_clip_ratio == 1.0
+    assert features.face_dark_ratio == 1.0
+
+
+def test_local_face_lift_changes_face_background_relation():
+    source, masks = _scene()
+    lifted = source.copy()
+    lifted[masks.face] = np.clip(lifted[masks.face] * 1.8, 0.0, 1.0)
+    source_features = extract_features(source, masks)
+    lifted_features = extract_features(lifted, masks)
+    assert lifted_features.face_bg_ev > source_features.face_bg_ev + 0.5
+
+
+def test_clear_non_tm_structural_modification_fails_source_preservation():
+    source, masks = _scene()
+    rewritten = source.copy()
+    # Replace face structure with a bright block: an exposure-only transform
+    # cannot create this new strong edge geometry.
+    rewritten[17:31, 17:31] = (0.9, 0.9, 0.9)
+    preservation = evaluate_source_preservation(source, rewritten, masks, IQAConfig().guards)
+    assert preservation.status == "FAIL"
+    assert preservation.structural_failure
+
+
+def test_local_face_lift_is_not_failed_only_for_low_frequency_difference():
+    source, masks = _scene()
+    cfg = IQAConfig()
+    # This deliberately makes LF change alone breach the fail threshold.  The
+    # candidate still preserves the independent edge/face-structure signals.
+    cfg.guards.preservation_low_frequency_fail = 0.001
+    lifted = _by_id(generate_pool(source, masks, cfg))['face_lift_high'].rgb
+    preservation = evaluate_source_preservation(source, lifted, masks, cfg.guards)
+    assert preservation.low_frequency_error > cfg.guards.preservation_low_frequency_fail
+    assert preservation.edge_position_agreement > cfg.guards.preservation_edge_agreement_fail
+    assert not preservation.structural_failure
+    assert preservation.status != "FAIL"
+
+
+def test_legacy_halo_reject_yaml_controls_v2_halo_warning(tmp_path):
+    config_path = tmp_path / "legacy.yaml"
+    config_path.write_text("guards:\n  halo_reject: 0.50\n", encoding="utf-8")
+    cfg = load_config(config_path)
+    assert cfg.guards.halo_warning is None
+    source, masks = _scene()
+    halo = source.copy()
+    halo[masks.face_inner_ring] = 1.0
+    features = extract_features(halo, masks, cfg.guards)
+    assert features.halo_strength < cfg.guards.halo_reject
+    assert "LOCAL_TM_HALO" not in evaluate_guards(features, cfg.guards).warnings
+
+
+def test_evaluate_one_attaches_preservation_and_rejects_structural_edit(tmp_path):
+    source, masks = _scene()
+    rewritten = source.copy()
+    rewritten[17:31, 17:31] = (0.9, 0.9, 0.9)
+    source_path = tmp_path / "source.png"
+    candidate_path = tmp_path / "candidate.png"
+    mask_path = tmp_path / "mask.png"
+    Image.fromarray((source * 255).astype(np.uint8)).save(source_path)
+    Image.fromarray((rewritten * 255).astype(np.uint8)).save(candidate_path)
+    labels = np.zeros(source.shape[:2], dtype=np.uint8)
+    labels[masks.face] = 1
+    labels[masks.skin] = 2
+    labels[masks.human] = 3
+    Image.fromarray(labels).save(mask_path)
+    cfg = IQAConfig()
+    cfg.vlm.enabled = False
+    result = TMPGTEvaluator(cfg).evaluate_one(
+        candidate_path, mask_path, run_vlm=False, source_path=source_path
+    )
+    assert result.source_preservation is not None
+    assert result.source_preservation["status"] == "FAIL"
+    assert "SOURCE_PRESERVATION_FAIL" in result.guards["failures"]
+    assert result.pgt_class == "REJECT"

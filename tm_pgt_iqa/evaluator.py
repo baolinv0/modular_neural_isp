@@ -5,7 +5,13 @@ from pathlib import Path
 import numpy as np
 
 from .config import IQAConfig
-from .metrics import load_rgb, extract_features, score_features, evaluate_guards
+from .metrics import (
+    evaluate_guards,
+    evaluate_source_preservation,
+    extract_features,
+    load_rgb,
+    score_features,
+)
 from .segmentation import load_label_map, resize_masks
 from .vlm import QwenVLMClient, VLMReview
 from .semantic_judge import QwenSemanticJudge, SemanticReview
@@ -23,6 +29,7 @@ class CandidateResult:
     pgt_class: str
     training_weight: float
     semantic: dict | None = None
+    source_preservation: dict | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -50,19 +57,25 @@ class TMPGTEvaluator:
         if masks.face.shape != rgb.shape[:2]:
             masks = resize_masks(masks, rgb.shape[:2])
 
-        features = extract_features(rgb, masks)
-        quality = score_features(features, self.config.weights)
-        guards = evaluate_guards(features, self.config.guards)
+        features = extract_features(rgb, masks, self.config.guards)
+        quality = score_features(features, self.config.weights, self.config.objective)
+        preservation = None
+        source_rgb = None
+        if source_path is not None:
+            source_rgb = load_rgb(str(source_path))
+            preservation = evaluate_source_preservation(source_rgb, rgb, masks, self.config.guards)
+        guards = evaluate_guards(features, self.config.guards, preservation)
         evidence = {
             "metrics": quality.to_dict(),
             "features": features.to_dict(),
             "guards": guards.to_dict(),
+            "source_preservation": preservation.to_dict() if preservation else None,
         }
 
         review: VLMReview | None = None
         semantic: SemanticReview | None = None
         if run_vlm and source_path is not None and self.semantic_judge is not None:
-            source_rgb = load_rgb(str(source_path))
+            assert source_rgb is not None
             semantic = self.semantic_judge.review(source_rgb, rgb, masks, evidence)
         elif run_vlm and self.vlm_client is not None:
             review = self.vlm_client.review(rgb, masks, evidence)
@@ -85,6 +98,7 @@ class TMPGTEvaluator:
             pgt_class=pgt_class,
             training_weight=weight,
             semantic=semantic.to_dict() if semantic else None,
+            source_preservation=preservation.to_dict() if preservation else None,
         )
 
     def _classify(

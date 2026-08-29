@@ -82,14 +82,56 @@ class ScoreWeights:
 
 
 @dataclass
+class ObjectiveMetricConfig:
+    """Calibratable bands for the small deterministic V2 objective score.
+
+    Keeping these values in configuration makes later human-ranking calibration
+    a data change instead of a code change.  The defaults intentionally retain
+    the V1 scoring behaviour.
+    """
+
+    exposure_band: tuple[float, float, float, float] = (-5.0, -3.1, -1.4, -0.35)
+    highlight_headroom_band: tuple[float, float, float, float] = (0.0, 0.015, 0.18, 0.35)
+    shadow_separation_band: tuple[float, float, float, float] = (0.0, 0.005, 0.12, 0.25)
+    midtone_span_band: tuple[float, float, float, float] = (0.02, 0.08, 0.45, 0.70)
+    face_tone_span_band: tuple[float, float, float, float] = (0.15, 0.55, 2.8, 4.5)
+    face_shadow_band: tuple[float, float, float, float] = (0.05, 0.20, 1.5, 2.5)
+    face_highlight_band: tuple[float, float, float, float] = (0.05, 0.20, 1.5, 2.5)
+    face_background_band: tuple[float, float, float, float] = (-3.0, -1.2, 2.0, 3.5)
+    global_log_std_band: tuple[float, float, float, float] = (0.15, 0.45, 2.0, 3.2)
+    global_log_skew_center: float = -0.2
+    global_log_skew_sigma: float = 1.6
+    dynamic_range_components: tuple[float, float, float] = (0.35, 0.25, 0.40)
+    face_tone_components: tuple[float, float, float] = (0.45, 0.275, 0.275)
+    naturalness_components: tuple[float, float] = (0.60, 0.40)
+    dynamic_range_clip_scale: float = 0.20
+
+
+@dataclass
 class GuardConfig:
     face_clip_reject: float = 0.10
     face_dark_reject: float = 0.35
     global_clip_reject: float = 0.20
+    # ``halo_reject`` is retained as a backwards-compatible config spelling.
+    # Halo is a soft warning in V2 and never causes a hard guard failure.
     halo_reject: float = 0.20
+    # ``None`` means: use the legacy ``halo_reject`` threshold as warning
+    # threshold.  New configs may set this independently.
+    halo_warning: float | None = None
+    face_highlight_threshold: float = 0.98
+    face_dark_threshold: float = 0.02
     skin_chroma_min: float = 4.0
     skin_chroma_max: float = 55.0
     pool_outlier_z: float = 3.5
+    preservation_low_frequency_suspicious: float = 0.22
+    preservation_low_frequency_fail: float = 0.38
+    preservation_edge_agreement_suspicious: float = 0.60
+    preservation_edge_agreement_fail: float = 0.35
+    preservation_face_correlation_suspicious: float = 0.70
+    preservation_face_correlation_fail: float = 0.35
+    preservation_hue_shift_suspicious_deg: float = 18.0
+    preservation_hue_shift_fail_deg: float = 35.0
+    preservation_edge_percentile: float = 85.0
 
 
 @dataclass
@@ -122,6 +164,7 @@ class SemanticConfig:
 class IQAConfig:
     labels: LabelConfig = field(default_factory=LabelConfig)
     weights: ScoreWeights = field(default_factory=ScoreWeights)
+    objective: ObjectiveMetricConfig = field(default_factory=ObjectiveMetricConfig)
     guards: GuardConfig = field(default_factory=GuardConfig)
     thresholds: ThresholdConfig = field(default_factory=ThresholdConfig)
     vlm: VLMConfig = field(default_factory=VLMConfig)
