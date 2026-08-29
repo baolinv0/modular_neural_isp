@@ -1,99 +1,71 @@
-# TM PGT NR-IQA
+# TM PGT IQA V2
 
-No-reference front-camera portrait Tone Mapping pseudo-GT selector with deterministic TM metrics and an optional Qwen3.8-27B semantic judgment branch.
+V2 generates and selects front-camera portrait Tone-Mapping pseudo-GT. It evaluates exposure, tone mapping, dynamic range, local face exposure, and the face/background tone relation. It does not score focus, texture, noise, resolution, bokeh, or beautification. Source-preservation checks reject clear content edits outside the Tone-Mapping scope.
 
-## Inputs
+The production chain is:
 
-Each candidate image must have a semantic label map with the same stem in the mask directory.
-Default labels:
+`Source + semantic masks -> candidate pool -> objective guards -> family-balanced Top-K -> optional Qwen semantic judgment/tournament -> PGT`.
 
-- `0`: background
-- `1`: face (non-skin face region)
-- `2`: skin
+## Generate candidates
 
-The evaluator consumes segmentation results; it does not run a segmentation model.
-
-For the semantic branch, also provide the original Source image before candidate Tone Mapping. Source is used to understand scene lighting and to verify that Source -> Candidate remains a plausible Tone Mapping operation.
-
-## Qwen3.8-27B
-
-Model weights are expected to be downloaded before runtime. The evaluator never downloads model files.
-Start a local OpenAI-compatible server, for example:
+Label maps use `0=background`, `1=face/non-skin`, `2=skin`, `3=human/body`. Soft face/skin/human maps are optional. The generator writes one directory per source image, with a PNG and authoritative JSON manifest for every candidate.
 
 ```bash
-vllm serve /models/Qwen3.8-27B \
-  --served-model-name qwen3.8 \
-  --host 127.0.0.1 \
-  --port 8000
+python -m tm_pgt_iqa.candidate_generation.generate_candidates \
+  --input source/ \
+  --masks masks/ \
+  --output candidates/ \
+  --config tm_pgt_iqa.example.yaml
 ```
 
-The semantic client uses `/v1/chat/completions` with local `image_url` data URLs.
+Deterministic generation creates eight Retinex candidates, three local-face lifts, two face-tone shapes, and one gain baseline. The optional Qwen image-edit adapter may append `qwen_normal` and `qwen_strong`; its absence never blocks the deterministic pool.
 
-## Semantic judgment branch
+## Batch evaluation and selection
 
-Qwen receives:
-
-1. Source image
-2. Candidate image
-3. Candidate semantic overlay
-4. Deterministic TM evidence
-
-It returns a compact structured judgment:
-
-- scene intent: normal/backlight/low-light/side-light/high-DR etc.
-- TM naturalness: flat face, over-lift, over-HDR, shadow lift, highlight compression, lighting-causality break, face/background disconnect, global tone unnaturalness
-- TM-only: `PASS | SUSPICIOUS | FAIL`
-- semantic quality: `GOOD | ACCEPTABLE | POOR`
-
-High-confidence `TM-only=FAIL` or `semantic_quality=POOR` can reject a candidate. Qwen does not modify the deterministic Overall score.
-
-After deterministic eligibility filtering, the top-K candidates are compared pairwise by Qwen:
-
-```text
-A_BETTER | B_BETTER | EQUIVALENT
-```
-
-The tournament produces a semantic winner and an `equivalent_top_set`. This is used for final PGT selection rather than creating an arbitrary Qwen 0-100 score.
-
-## Run with semantic branch
+Use `--candidates` in production. Its JSON manifests are the authority for candidate ID, family, parameters, and source; the selector does not infer a family from filenames.
 
 ```bash
 python -m tm_pgt_iqa \
-  --images ./candidates \
-  --masks ./semantic_masks \
-  --source ./source.jpg \
+  --source source/ \
+  --candidates candidates/ \
+  --masks masks/ \
   --config tm_pgt_iqa.example.yaml \
-  --output ./pgt_report.json
+  --output results/
 ```
 
-## Deterministic metrics only
+The source argument can be one image or a directory. Candidate pools may be flat for one source or organized as `candidates/<source-stem>/`. Source masks are resolved from `<stem>.png`, `<stem>_mask.png`, or the exact source filename; use `--source-mask` to specify a file or mask directory explicitly.
+
+For deterministic debugging with no local VLM service:
 
 ```bash
 python -m tm_pgt_iqa \
-  --images ./candidates \
-  --masks ./semantic_masks \
-  --output ./pgt_report.json \
-  --no-vlm
+  --source source/ --candidates candidates/ --masks masks/ \
+  --config tm_pgt_iqa.example.yaml --output results/ --no-vlm
 ```
 
-If `--source` is omitted but VLM is enabled, the legacy candidate-only VLM review remains available for backward compatibility.
+The output root contains `report.json`, `summary.csv`, selected images, copied candidates/manifests, per-scene semantic JSON, and candidate/ranking/failure contact sheets. `pgt_class` and `selection_confidence` are independent: CERTIFIED images retain training weight `1.0` even when the winner is weakly separated from another valid candidate.
 
-## Output
+`--images` remains a compatibility alias for the former single-pool interface. It accepts legacy minimal sidecars, but does not provide the V2 production manifest guarantees.
 
-Each image contains five deterministic TM scores:
+## Qwen semantic branch
 
-- exposure
-- dynamic range
-- face tone
-- face/background relation
-- tone naturalness
+The optional local Qwen3.8-27B service receives source, candidate, semantic overlay, and objective evidence. It runs scene understanding once per source, then naturalness and TM-only review on the deterministic family-balanced Top-K, followed by a pairwise tournament. Qwen provides semantic labels and pairwise preferences, never an arbitrary 0–100 quality score.
 
-The report additionally contains `semantic_ranking` when Source-aware semantic ranking is enabled.
+```bash
+vllm serve /models/Qwen3.8-27B --served-model-name qwen3.8 --host 127.0.0.1 --port 8000
+```
 
-Classification:
+**Live Qwen Conformance: NOT COMPLETE.** Local parser and offline tests do not validate JSON stability, pairwise direction, repeatability, or non-TM-edit detection on the deployment server. Run the required 20–30 real-scene conformance set before treating Qwen output as production-validated.
 
-- `CERTIFIED_PGT`: training weight 1.0
-- `USABLE_PGT`: training weight 0.5
-- `REJECT`: training weight 0.0
+## Human validation and ablations
 
-The numeric defaults are initial engineering priors and should be calibrated on accepted/rejected portrait Tone Mapping samples from the target product domain.
+Human annotations are JSON scene records with `source`, ranked candidate IDs in `ranking`, and optional boolean `accepted` for certified outputs. Calculate the required metrics:
+
+```bash
+python -m tm_pgt_iqa.validation \
+  --report results/report.json --annotations human_rankings.json \
+  --output validation.json
+python -m tm_pgt_iqa.validation --write-ablation-template ablations.json
+```
+
+The validation report contains mean Kendall tau, Top-2 accuracy, and Certified Precision. The emitted ablation template records the mandatory Objective/Qwen and candidate-family experiment matrix; collecting real human annotations and running those experiments remains an offline validation task.

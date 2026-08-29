@@ -96,7 +96,7 @@ def test_high_confidence_qwen_reject_overrides_good_score():
     assert weight == 0.0
 
 
-def test_pool_outlier_is_rejected():
+def test_pool_outlier_only_reduces_pool_confidence():
     cfg = IQAConfig()
     cfg.vlm.enabled = False
     evaluator = TMPGTEvaluator(cfg)
@@ -105,4 +105,5 @@ def test_pool_outlier_is_rejected():
     results = [r("a", 0.2), r("b", 0.21), r("c", 0.22), r("d", 2.5)]
     evaluator.apply_pool_consistency(results)
     assert results[-1].pool_outlier
-    assert results[-1].pgt_class == "REJECT"
+    assert results[-1].pool_confidence == "LOW"
+    assert results[-1].pgt_class == "CERTIFIED_PGT"

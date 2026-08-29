@@ -1,35 +1,87 @@
+# TM PGT IQA V2 starting calibration. Tune against human pairwise rankings.
 labels:
   background: 0
   face: 1
   skin: 2
+  human: 3
+
+candidate_generation:
+  retinex:
+    gaussian_radius: 31
+    eps: 0.0001
+    levels_ev:
+      a_m30: -0.45
+      a_m20: -0.30
+      a_m10: -0.15
+      a_000: 0.00
+      a_p10: 0.15
+      a_p20: 0.30
+      a_p30: 0.45
+      a_p40: 0.60
+  local_face_tm:
+    lift_ev: {low: 0.30, mid: 0.60, high: 0.90}
+    dilation_radius: 8
+    smoothing_radius: 4.0
+  tone_shape:
+    median_ev_tolerance: 0.10
+    shadow_preserve_gamma: 1.12
+    soft_highlight_gamma: 0.88
+  gain:
+    max_gain: 4.0
+    max_clip_ratio: 0.01
+    search_steps: 24
+  # The edit adapter is optional and is separate from Qwen VLM judgment.
+  qwen_edit:
+    enabled: false
+
 weights:
   exposure: 0.20
   dynamic_range: 0.20
   face_tone: 0.25
   face_background: 0.15
   naturalness: 0.20
+
+# Objective bands are config rather than hard-coded policy.
+objective:
+  exposure_band: [-5.0, -3.1, -1.4, -0.35]
+  face_tone_span_band: [0.15, 0.55, 2.8, 4.5]
+  face_background_band: [-3.0, -1.2, 2.0, 3.5]
+
 guards:
   face_clip_reject: 0.10
   face_dark_reject: 0.35
   global_clip_reject: 0.20
-  halo_reject: 0.20
-  skin_chroma_min: 4.0
-  skin_chroma_max: 55.0
+  halo_warning: 0.20
   pool_outlier_z: 3.5
+  preservation_low_frequency_suspicious: 0.22
+  preservation_low_frequency_fail: 0.38
+  preservation_edge_agreement_suspicious: 0.60
+  preservation_edge_agreement_fail: 0.35
+  preservation_face_correlation_suspicious: 0.70
+  preservation_face_correlation_fail: 0.35
+  preservation_hue_shift_suspicious_deg: 18.0
+  preservation_hue_shift_fail_deg: 35.0
+
 thresholds:
   certified_score: 82.0
   usable_score: 65.0
   qwen_reject_confidence: 0.75
+
 vlm:
   enabled: true
   base_url: http://127.0.0.1:8000/v1
   model: qwen3.8
   timeout_s: 60
-  max_tokens: 300
+  max_tokens: 512
   temperature: 0.0
 semantic:
   enabled: true
-  top_k: 5
-  reject_confidence: 0.80
+  top_k: 4
   pairwise_min_confidence: 0.65
   equivalent_margin: 1.0
+  low_objective_separation: 3.0
+  high_objective_separation: 8.0
+  selection_qwen_high_confidence: 0.85
+
+# Live Qwen Conformance: NOT COMPLETE. Do not claim deployment validation
+# until the documented 20–30 real-scene conformance test has been run.
