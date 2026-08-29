@@ -104,7 +104,7 @@ def test_pairwise_payload_contains_source_a_b_and_two_overlays():
 def test_config_has_semantic_branch_defaults():
     cfg = IQAConfig()
     assert cfg.semantic.enabled is True
-    assert cfg.semantic.top_k == 5
+    assert cfg.semantic.top_k == 4
     assert cfg.semantic.reject_confidence == 0.80
 
 

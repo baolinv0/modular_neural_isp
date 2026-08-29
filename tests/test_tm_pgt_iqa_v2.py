@@ -6,7 +6,7 @@ from PIL import Image
 
 from tm_pgt_iqa.candidate_generation import generate_pool, write_pool
 from tm_pgt_iqa.config import IQAConfig, load_config
-from tm_pgt_iqa.evaluator import TMPGTEvaluator
+from tm_pgt_iqa.evaluator import CandidateResult, TMPGTEvaluator, select_semantic_topk
 from tm_pgt_iqa.metrics import (
     evaluate_guards,
     evaluate_source_preservation,
@@ -262,3 +262,289 @@ def test_evaluate_one_attaches_preservation_and_rejects_structural_edit(tmp_path
     assert result.source_preservation["status"] == "FAIL"
     assert "SOURCE_PRESERVATION_FAIL" in result.guards["failures"]
     assert result.pgt_class == "REJECT"
+
+
+def _selection_result(name: str, score: float, family: str, semantic=None) -> CandidateResult:
+    return CandidateResult(
+        candidate=name,
+        quality_score=score,
+        metrics={"overall": score},
+        features={"face_bg_ev": 0.0},
+        guards={"passed": True, "failures": []},
+        vlm=None,
+        pool_outlier=False,
+        pgt_class="CERTIFIED_PGT",
+        training_weight=1.0,
+        semantic=semantic,
+        family=family,
+    )
+
+
+def test_family_balanced_topk_keeps_top_two_then_other_families():
+    results = [
+        _selection_result("r1", 99.0, "retinex"),
+        _selection_result("r2", 98.0, "retinex"),
+        _selection_result("r3", 97.0, "retinex"),
+        _selection_result("r4", 96.0, "retinex"),
+        _selection_result("local", 95.0, "local_face_tm"),
+        _selection_result("shape", 94.0, "tone_shape"),
+        _selection_result("gain", 93.0, "gain"),
+    ]
+    selected = select_semantic_topk(results, top_k=4)
+    assert [result.candidate for result in selected] == ["r1", "r2", "local", "shape"]
+
+
+def test_family_balanced_topk_uses_candidate_id_as_stable_score_tie_breaker():
+    results = [
+        _selection_result("z_retinex", 90.0, "retinex"),
+        _selection_result("b_retinex", 90.0, "retinex"),
+        _selection_result("a_retinex", 90.0, "retinex"),
+        _selection_result("local", 80.0, "local_face_tm"),
+    ]
+    selected = select_semantic_topk(results, top_k=2)
+    assert [result.candidate for result in selected] == ["a_retinex", "b_retinex"]
+
+
+def test_qwen_tm_only_fail_rejects_even_at_low_model_confidence():
+    from tm_pgt_iqa.semantic_judge import SceneIntent, SemanticReview
+
+    review = SemanticReview(
+        scene_type="NORMAL",
+        scene_intent=SceneIntent(False, "MEDIUM", "MEDIUM", "MEDIUM"),
+        naturalness={},
+        tm_only="FAIL",
+        semantic_quality="GOOD",
+        confidence=0.10,
+        summary="content modification",
+    )
+    cls, weight = TMPGTEvaluator(IQAConfig())._classify(95.0, True, None, False, semantic=review)
+    assert (cls, weight) == ("REJECT", 0.0)
+
+
+def test_pairwise_winner_is_selected_with_win_tie_loss_point_tournament():
+    evaluator = TMPGTEvaluator(IQAConfig())
+    results = [
+        _selection_result("a", 91.0, "retinex"),
+        _selection_result("b", 90.0, "local_face_tm"),
+        _selection_result("c", 89.0, "tone_shape"),
+    ]
+    final = evaluator.finalize_selection(
+        results,
+        {
+            "winner": "b",
+            "equivalent_top_set": ["b"],
+            "points": {"a": -1.0, "b": 2.0, "c": -1.0},
+            "comparisons": [],
+        },
+    )
+    assert final["selected"] == "b"
+    assert final["pgt_class"] == "CERTIFIED_PGT"
+    assert final["training_weight"] == 1.0
+
+
+def test_low_objective_separation_does_not_downgrade_certified_quality():
+    evaluator = TMPGTEvaluator(IQAConfig())
+    results = [
+        _selection_result("winner", 90.0, "retinex"),
+        _selection_result("nearby", 89.5, "local_face_tm"),
+    ]
+    final = evaluator.finalize_selection(
+        results,
+        {
+            "winner": "winner",
+            "equivalent_top_set": ["winner", "nearby"],
+            "points": {"winner": 0.0, "nearby": 0.0},
+            "comparisons": [],
+        },
+    )
+    assert final["pgt_class"] == "CERTIFIED_PGT"
+    assert final["training_weight"] == 1.0
+    assert final["selection_confidence"] == "LOW"
+
+
+def test_pool_confidence_cannot_lower_selection_confidence_or_training_weight():
+    evaluator = TMPGTEvaluator(IQAConfig())
+    semantic = {
+        "tm_only": "PASS",
+        "semantic_quality": "GOOD",
+        "naturalness": {},
+        "confidence": 0.95,
+    }
+    winner = _selection_result("winner", 95.0, "retinex", semantic=semantic)
+    winner.pool_confidence = "LOW"
+    other = _selection_result("other", 80.0, "local_face_tm", semantic=semantic)
+    final = evaluator.finalize_selection(
+        [winner, other],
+        {
+            "winner": "winner",
+            "equivalent_top_set": ["winner"],
+            "points": {"winner": 3.0, "other": -3.0},
+            "comparisons": [{"confidence": 0.95}, {"confidence": 0.95}],
+        },
+    )
+    assert final["pgt_class"] == "CERTIFIED_PGT"
+    assert final["training_weight"] == 1.0
+    assert final["selection_confidence"] == "HIGH"
+
+
+def test_low_qwen_review_confidence_lowers_selection_confidence():
+    evaluator = TMPGTEvaluator(IQAConfig())
+    winner = _selection_result("winner", 95.0, "retinex", semantic={
+        "tm_only": "PASS", "semantic_quality": "GOOD", "naturalness": {}, "confidence": 0.10,
+    })
+    other = _selection_result("other", 80.0, "local_face_tm")
+    final = evaluator.finalize_selection(
+        [winner, other],
+        {"winner": "winner", "equivalent_top_set": ["winner"], "points": {"winner": 3.0, "other": -3.0}, "comparisons": [{"confidence": 0.95}]},
+    )
+    assert final["pgt_class"] == "CERTIFIED_PGT"
+    assert final["selection_confidence"] == "LOW"
+
+
+def test_finalize_objective_fallback_uses_stable_candidate_id_tie_breaker():
+    evaluator = TMPGTEvaluator(IQAConfig())
+    results = [
+        _selection_result("z_candidate", 90.0, "retinex"),
+        _selection_result("a_candidate", 90.0, "local_face_tm"),
+    ]
+    final = evaluator.finalize_selection(results)
+    assert final["selected"] == "a_candidate"
+
+
+def test_semantic_rejection_cannot_promote_unreviewed_candidate_during_finalization():
+    evaluator = TMPGTEvaluator(IQAConfig())
+    rejected = _selection_result("reviewed_rejected", 99.0, "retinex")
+    rejected.pgt_class = "REJECT"
+    rejected.semantic_reviewed = True
+    reviewed = _selection_result("reviewed_usable", 80.0, "local_face_tm")
+    reviewed.semantic_reviewed = True
+    unreviewed = _selection_result("unreviewed_c", 98.0, "tone_shape")
+    final = evaluator.finalize_selection([rejected, reviewed, unreviewed])
+    assert final["selected"] == "reviewed_usable"
+
+
+def test_ranking_stays_with_reviewed_set_after_a_semantic_rejection(tmp_path):
+    source = np.full((8, 8, 3), 0.3, dtype=np.float32)
+    labels = np.zeros((8, 8), dtype=np.uint8)
+    source_path = tmp_path / "source.png"
+    Image.fromarray((source * 255).astype(np.uint8)).save(source_path)
+    results, mask_paths = [], {}
+    for name, score, family in (("rejected", 99.0, "retinex"), ("reviewed", 80.0, "local_face_tm"), ("unreviewed", 98.0, "tone_shape")):
+        image_path, mask_path = tmp_path / f"{name}.png", tmp_path / f"{name}_mask.png"
+        Image.fromarray((source * 255).astype(np.uint8)).save(image_path)
+        Image.fromarray(labels).save(mask_path)
+        result = _selection_result(str(image_path), score, family)
+        result.semantic_reviewed = name != "unreviewed"
+        if name == "rejected":
+            result.pgt_class = "REJECT"
+        results.append(result)
+        mask_paths[str(image_path)] = str(mask_path)
+
+    evaluator = TMPGTEvaluator(IQAConfig())
+    ranking = evaluator.rank_candidates(results, source_path, mask_paths, top_k=4)
+    assert ranking["winner"].endswith("reviewed.png")
+
+
+def test_scene_understanding_is_called_once_and_reused_for_topk_candidates(tmp_path):
+    from tm_pgt_iqa.semantic_judge import SceneAnalysis, SceneIntent, SemanticReview
+
+    source = np.full((16, 16, 3), 0.3, dtype=np.float32)
+    labels = np.zeros((16, 16), dtype=np.uint8)
+    labels[4:12, 4:12] = 1
+    source_path = tmp_path / "source.png"
+    source_mask_path = tmp_path / "source_mask.png"
+    Image.fromarray((source * 255).astype(np.uint8)).save(source_path)
+    source_labels = np.zeros((16, 16), dtype=np.uint8)
+    source_labels[1:3, 1:3] = 1
+    Image.fromarray(source_labels).save(source_mask_path)
+    mask_paths = {}
+    results = []
+    for name, score, family in (("a", 91.0, "retinex"), ("b", 90.0, "local_face_tm")):
+        image_path = tmp_path / f"{name}.png"
+        mask_path = tmp_path / f"{name}_mask.png"
+        Image.fromarray((source * (1.0 if name == "a" else 1.1) * 255).astype(np.uint8)).save(image_path)
+        Image.fromarray(labels).save(mask_path)
+        mask_paths[str(image_path)] = str(mask_path)
+        results.append(_selection_result(str(image_path), score, family))
+
+    class FakeJudge:
+        def __init__(self):
+            self.scene_calls = 0
+            self.candidate_calls = 0
+
+        def analyze_scene(self, source_rgb, masks):
+            self.scene_calls += 1
+            assert masks.face[1, 1]
+            assert not masks.face[5, 5]
+            return SceneAnalysis("BACKLIGHT", SceneIntent(True, "HIGH", "MEDIUM", "HIGH"), 0.9, "dark face")
+
+        def review_with_scene(self, source_rgb, candidate_rgb, masks, evidence, scene):
+            self.candidate_calls += 1
+            assert scene.scene_type == "BACKLIGHT"
+            return SemanticReview(scene.scene_type, scene.scene_intent, {}, "PASS", "GOOD", 0.9, "natural")
+
+    evaluator = TMPGTEvaluator(IQAConfig())
+    fake = FakeJudge()
+    evaluator.semantic_judge = fake
+    semantic = evaluator.review_semantic_topk(results, source_path, source_mask_path, mask_paths, top_k=2)
+    assert fake.scene_calls == 1
+    assert fake.candidate_calls == 2
+    assert semantic["scene"]["scene_type"] == "BACKLIGHT"
+    assert all(result.semantic["scene_type"] == "BACKLIGHT" for result in results)
+
+
+def test_cli_defers_source_aware_semantic_calls_until_after_objective_topk(tmp_path):
+    """The production entrypoint must not invoke Qwen from evaluate_one per candidate."""
+    from unittest.mock import patch
+    import sys
+    from tm_pgt_iqa.cli import main
+
+    images_dir, masks_dir = tmp_path / "images", tmp_path / "masks"
+    images_dir.mkdir()
+    masks_dir.mkdir()
+    rgb = np.full((8, 8, 3), 0.3, dtype=np.float32)
+    labels = np.zeros((8, 8), dtype=np.uint8)
+    for name in ("a", "b"):
+        Image.fromarray((rgb * 255).astype(np.uint8)).save(images_dir / f"{name}.png")
+        Image.fromarray(labels).save(masks_dir / f"{name}.png")
+        (images_dir / f"{name}.json").write_text(json.dumps({"family": "retinex" if name == "a" else "local_face_tm"}), encoding="utf-8")
+    source_path, source_mask_path = tmp_path / "source.png", tmp_path / "source_mask.png"
+    Image.fromarray((rgb * 255).astype(np.uint8)).save(source_path)
+    Image.fromarray(labels).save(source_mask_path)
+    output = tmp_path / "report.json"
+
+    class FakeEvaluator:
+        instance = None
+
+        def __init__(self, config):
+            self.semantic_judge = object()
+            self.evaluate_calls = []
+            self.semantic_calls = []
+            FakeEvaluator.instance = self
+
+        def evaluate_one(self, image_path, label_path, **kwargs):
+            self.evaluate_calls.append(kwargs)
+            return _selection_result(str(image_path), 90.0, kwargs["family"])
+
+        def apply_pool_consistency(self, results):
+            return results
+
+        def review_semantic_topk(self, results, source, source_mask, mask_paths):
+            self.semantic_calls.append((source, source_mask, mask_paths))
+            return {"scene": {"scene_type": "NORMAL"}, "reviewed": [result.candidate for result in results]}
+
+        def rank_candidates(self, results, source, mask_paths):
+            return {"winner": results[0].candidate, "equivalent_top_set": [results[0].candidate], "points": {}, "comparisons": []}
+
+        def finalize_selection(self, results, tournament):
+            return {"selected": results[0].candidate, "pgt_class": "CERTIFIED_PGT", "training_weight": 1.0, "selection_confidence": "HIGH"}
+
+    argv = [
+        "tm_pgt_iqa", "--images", str(images_dir), "--masks", str(masks_dir),
+        "--source", str(source_path), "--source-mask", str(source_mask_path), "--output", str(output),
+    ]
+    with patch("tm_pgt_iqa.cli.TMPGTEvaluator", FakeEvaluator), patch.object(sys, "argv", argv):
+        assert main() == 0
+    assert all(call["run_vlm"] is False for call in FakeEvaluator.instance.evaluate_calls)
+    assert len(FakeEvaluator.instance.semantic_calls) == 1
+    assert FakeEvaluator.instance.semantic_calls[0][1] == source_mask_path

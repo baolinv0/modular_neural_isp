@@ -154,10 +154,14 @@ class VLMConfig:
 @dataclass
 class SemanticConfig:
     enabled: bool = True
-    top_k: int = 5
+    top_k: int = 4
     reject_confidence: float = 0.80
     pairwise_min_confidence: float = 0.65
     equivalent_margin: float = 1.0
+    # Score separation affects only selection confidence, never PGT class.
+    low_objective_separation: float = 3.0
+    high_objective_separation: float = 8.0
+    selection_qwen_high_confidence: float = 0.85
 
 
 @dataclass

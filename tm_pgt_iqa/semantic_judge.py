@@ -68,6 +68,17 @@ class PairwiseReview:
         return asdict(self)
 
 
+@dataclass
+class SceneAnalysis:
+    scene_type: str
+    scene_intent: SceneIntent
+    confidence: float
+    summary: str
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
 def _image_data_url(image: Image.Image) -> str:
     buf = io.BytesIO()
     image.save(buf, format="JPEG", quality=92)
@@ -129,6 +140,23 @@ def parse_semantic_review(text: str) -> SemanticReview:
     )
 
 
+def parse_scene_analysis(text: str) -> SceneAnalysis:
+    """Parse the one Qwen scene call shared by all candidates of a source."""
+    obj = _extract_json(text)
+    intent_obj = obj.get("scene_intent", {}) or {}
+    return SceneAnalysis(
+        scene_type=_level(obj.get("scene_type"), SCENE_TYPES, "NORMAL"),
+        scene_intent=SceneIntent(
+            face_lift_needed=bool(intent_obj.get("face_lift_needed", False)),
+            background_preservation=_level(intent_obj.get("background_preservation"), INTENT_LEVELS, "MEDIUM"),
+            shadow_atmosphere=_level(intent_obj.get("shadow_atmosphere"), INTENT_LEVELS, "MEDIUM"),
+            highlight_priority=_level(intent_obj.get("highlight_priority"), INTENT_LEVELS, "MEDIUM"),
+        ),
+        confidence=float(np.clip(float(obj.get("confidence", 0.5)), 0.0, 1.0)),
+        summary=str(obj.get("summary", ""))[:500],
+    )
+
+
 def parse_pairwise_review(text: str) -> PairwiseReview:
     obj = _extract_json(text)
     return PairwiseReview(
@@ -178,6 +206,25 @@ B evidence: {json.dumps(b_evidence, ensure_ascii=False, separators=(',', ':'))}
 """
 
 
+def build_scene_prompt() -> str:
+    return """You are the scene-understanding branch of a front-camera portrait Tone Mapping PGT evaluator.
+Image 1 is the unedited SOURCE and Image 2 is its semantic overlay: red=skin, yellow=face, blue=background.
+Identify only the source lighting intent. Do not judge beauty, detail, noise, focus, or a candidate image.
+Return one JSON object only:
+{"scene_type":"NORMAL|BACKLIGHT|LOW_LIGHT|SIDE_LIGHT|HIGH_DR|BRIGHT_BACKGROUND|DARK_BACKGROUND|MIXED_LIGHT","scene_intent":{"face_lift_needed":false,"background_preservation":"LOW|MEDIUM|HIGH","shadow_atmosphere":"LOW|MEDIUM|HIGH","highlight_priority":"LOW|MEDIUM|HIGH"},"confidence":0.0,"summary":"short reason"}"""
+
+
+def build_candidate_prompt(evidence: dict, scene: SceneAnalysis) -> str:
+    return f"""You are the candidate naturalness and TM-only branch of a front-camera portrait Tone Mapping PGT evaluator.
+Image 1 = SOURCE. Image 2 = CANDIDATE. Image 3 = candidate semantic overlay: red=skin, yellow=face, blue=background.
+The source scene was already analyzed as {json.dumps(scene.to_dict(), ensure_ascii=False, separators=(',', ':'))}. Reuse that context; do not relabel the scene.
+Judge only Tone Mapping: face exposure/structure, highlight-shadow allocation, face-background relationship, lighting causality, and whether the candidate stays TM-only.
+Do not judge sharpness, noise, bokeh, beautification, or generic aesthetics.
+Return one JSON object only with naturalness (FACE_TOO_FLAT, FACE_OVER_LIFTED, OVER_HDR_LOOK, SHADOW_OVER_LIFTED, HIGHLIGHT_OVER_COMPRESSED, LIGHTING_CAUSALITY_BROKEN, FACE_BACKGROUND_DISCONNECTED, UNNATURAL_GLOBAL_TONE; each NONE|MINOR|MAJOR), tm_only (PASS|SUSPICIOUS|FAIL), semantic_quality (GOOD|ACCEPTABLE|POOR), confidence (0..1), summary.
+TM-only FAIL means clear geometry/identity/content/texture hallucination or large implausible hue change, not merely a substantial exposure change.
+Evidence: {json.dumps(evidence, ensure_ascii=False, separators=(',', ':'))}"""
+
+
 class QwenSemanticJudge:
     def __init__(self, cfg: VLMConfig):
         self.cfg = cfg
@@ -201,6 +248,15 @@ class QwenSemanticJudge:
             [_to_image(source_rgb), _to_image(candidate_rgb), make_overlay(candidate_rgb, masks)],
         )
 
+    def build_scene_payload(self, source_rgb: np.ndarray, masks: SemanticMasks) -> dict:
+        return self._payload(build_scene_prompt(), [_to_image(source_rgb), make_overlay(source_rgb, masks)])
+
+    def build_candidate_payload(self, source_rgb: np.ndarray, candidate_rgb: np.ndarray, masks: SemanticMasks, evidence: dict, scene: SceneAnalysis) -> dict:
+        return self._payload(
+            build_candidate_prompt(evidence, scene),
+            [_to_image(source_rgb), _to_image(candidate_rgb), make_overlay(candidate_rgb, masks)],
+        )
+
     def build_pairwise_payload(self, source_rgb: np.ndarray, a_rgb: np.ndarray, a_masks: SemanticMasks, a_evidence: dict, b_rgb: np.ndarray, b_masks: SemanticMasks, b_evidence: dict) -> dict:
         return self._payload(
             build_pairwise_prompt(a_evidence, b_evidence),
@@ -220,6 +276,15 @@ class QwenSemanticJudge:
 
     def review(self, source_rgb: np.ndarray, candidate_rgb: np.ndarray, masks: SemanticMasks, evidence: dict) -> SemanticReview:
         return parse_semantic_review(self._call(self.build_semantic_payload(source_rgb, candidate_rgb, masks, evidence)))
+
+    def analyze_scene(self, source_rgb: np.ndarray, masks: SemanticMasks) -> SceneAnalysis:
+        return parse_scene_analysis(self._call(self.build_scene_payload(source_rgb, masks)))
+
+    def review_with_scene(self, source_rgb: np.ndarray, candidate_rgb: np.ndarray, masks: SemanticMasks, evidence: dict, scene: SceneAnalysis) -> SemanticReview:
+        review = parse_semantic_review(self._call(self.build_candidate_payload(source_rgb, candidate_rgb, masks, evidence, scene)))
+        review.scene_type = scene.scene_type
+        review.scene_intent = scene.scene_intent
+        return review
 
     def compare(self, source_rgb: np.ndarray, a_rgb: np.ndarray, a_masks: SemanticMasks, a_evidence: dict, b_rgb: np.ndarray, b_masks: SemanticMasks, b_evidence: dict) -> PairwiseReview:
         payload = self.build_pairwise_payload(source_rgb, a_rgb, a_masks, a_evidence, b_rgb, b_masks, b_evidence)
