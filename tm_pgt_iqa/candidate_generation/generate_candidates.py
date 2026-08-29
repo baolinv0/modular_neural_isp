@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 import argparse
-import hashlib
 import json
 from pathlib import Path
 from typing import Callable, Iterable
@@ -85,7 +84,9 @@ def generate_pool(
     if source_rgb.ndim != 3 or source_rgb.shape[-1] != 3:
         raise ValueError("source_rgb must have HxWx3 shape")
     if source_name is None:
-        source_name = f"memory://sha256/{hashlib.sha256(source_rgb.tobytes()).hexdigest()[:16]}"
+        # Programmatic callers can provide a source name when provenance must
+        # be retained.  This stable marker avoids inventing a file identity.
+        source_name = "memory://unspecified-source"
     if masks.face.shape != source_rgb.shape[:2]:
         masks = resize_masks(masks, source_rgb.shape[:2])
     cfg = _candidate_config(config)

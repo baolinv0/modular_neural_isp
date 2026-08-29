@@ -125,7 +125,7 @@ def test_retinex_preserves_source_luminance_structure_and_derives_provenance():
     source_y = luminance(source).reshape(-1)
     candidate_y = luminance(pool["a_p20"].rgb).reshape(-1)
     assert np.corrcoef(source_y, candidate_y)[0, 1] > 0.99999
-    assert pool["a_p20"].manifest.source.startswith("memory://sha256/")
+    assert pool["a_p20"].manifest.source == "memory://unspecified-source"
 
 
 def test_write_pool_persists_authoritative_manifest(tmp_path):
