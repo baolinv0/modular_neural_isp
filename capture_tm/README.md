@@ -1,4 +1,47 @@
-# C：采集曝光与成片 TM 的联合原型
+# 采集曝光与成片 TM：单帧与 HDR 联合算法
+
+## 新版：两条完整算法与八组实验
+
+新增 Apple 启发的单帧 AE＋TM、Samsung 启发的三帧 HDR AE＋TM。完整算法说明见 [JOINT_ALGORITHMS.md](../docs/capture_tm/JOINT_ALGORITHMS.md)。两个方案分别运行场景自适应规则/学习 AE × 冻结/学习 TM 的四组实验。
+
+| 模块 | 新实现 |
+|---|---|
+| 因果时序 AE | `learned_policy.py`：三帧 CNN、运动差分、直方图、实际曝光元数据与完整曝光计划评分 |
+| 物理采集与固定 HDR 融合 | `capture_plan.py`：单帧动作或三帧包围曝光、观测噪声估计、平移对齐与运动拒绝 |
+| 可训练 TM | `learned_tone.py`：真实原权重＋2,663 参数的统一 gain/GTM/LTM 条件适配器 |
+| 固定目标与质量代价 | `joint_objective.py`：独立参考外观、亮度/细节/信息可用性代价 |
+| 联合训练与八组实验 | `joint_experiment.py`, `joint_cli.py`：离散期望、匹配更新预算、验证选模与按场景配对统计 |
+| 观测与实际采集推理 | `joint_algorithm.py`：`select()` 请求曝光；`finish()` 按实际生效参数融合及渲染；支持 checkpoint 加载 |
+
+在仓库根目录运行，使用下方安装说明提供的 Python 环境：
+
+```bash
+python -m capture_tm.joint_data --output runs/capture_tm/joint-data \
+  --scenes 40 --size 32 --seed 2026
+python -m capture_tm.joint_cli \
+  --manifest runs/capture_tm/joint-data/manifest.json \
+  --output runs/capture_tm/joint-study --scheme both \
+  --epochs 10 --warmup 10 --seeds 0,1,2 --noise-seeds 0,1 \
+  --threads 1 --prepare-threads 8
+```
+
+每个方案输出四组的训练记录、`selected.pt`/`last.pt`、固定目标与输出对照图、逐场景/逐噪声指标、分类汇总与交互项置信区间。`--prepare-threads` 只影响冻结系数缓存阶段；CPU 核数不足时可降低。
+
+```python
+from capture_tm.joint_algorithm import JointCaptureAlgorithm
+
+algorithm = JointCaptureAlgorithm.from_checkpoint(
+    'runs/capture_tm/joint-study/apple/seed_0/A11/selected.pt')
+request = algorithm.select(previews, effective_capture_state)
+# 相机执行 request['plan']，返回含实际 t/g 和 center_s 的 CaptureResult 列表。
+image = algorithm.finish(actual_captures)['output']
+# 也可在加载的线性 Scene 上运行同一条单计划采集路径：
+result = algorithm.run_simulated(scene, seed=7)
+```
+
+当前为真实原 TM 上的参数高效训练及分析型 RGB 传感器实验；原系数预测网络冻结。合成实验和机制测试不代表真实手机画质结论，固定 F0 也不等于生产级 HDR 配准/去鬼影。旧数据导入器仍可使用，但 RL-3A/RawGen 代理不能自动升级为干净 HDR 真值。
+
+## 旧 C1 原型（保留）
 
 在现有 `PhotofinishingModule` 和仓库自带的 S24 style-0 权重上新增完整、可运行的研究流程：构造相对线性场景 → 物理采集候选 → 两种专利启发的 TM → 依据最终成片质量生成监督 → 训练 AE 候选评分网络 → 独立测试 → 输出可执行曝光请求。原模型及权重保持原样；这里新增的是 `capture_tm`。
 
