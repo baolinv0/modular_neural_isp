@@ -18,7 +18,7 @@ WEIGHTS = ROOT / 'photofinishing/models/photofinishing_s24-style-0.pth'
 
 @pytest.mark.parametrize('kwargs', [
     {'algorithm': 'unknown'}, {'semantic_mode': 'invalid'},
-    {'algorithm': 'baseline', 'semantic_mode': 'explicit'},
+    {'algorithm': 'baseline', 'semantic_mode': 'train_only'},
     {'width': 0}, {'width': True}, {'analysis_size': 0}, {'curve_bins': 1},
     {'num_experts': 0}, {'grid_depth': 1}, {'grid_size': 1},
     {'max_ev': -1}, {'max_ev': float('nan')}, {'exposures': []},
@@ -194,7 +194,7 @@ def test_baseline_tiny_extremes_are_finite(value):
     assert result['output'].isfinite().all()
 
 
-@pytest.mark.parametrize('bad_confidence', [torch.zeros(1, 3, 4, 5), torch.full((1, 1, 4, 5), float('nan'))])
+@pytest.mark.parametrize('bad_confidence', [torch.zeros(1, 2, 4, 5), torch.full((1, 1, 4, 5), float('nan'))])
 def test_explicit_confidence_contract_also_applies_with_missing_semantics(bad_confidence):
     encoder = ConditionEncoder(ModelConfig(algorithm='region_curves', semantic_mode='explicit'))
     image = torch.rand(1, 3, 4, 5)

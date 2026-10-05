@@ -113,3 +113,51 @@ def test_explicit_semantics_influence_render_and_zero_confidence_suppresses_them
     conditioned = op(gain, base, masks, one)["image"]
     torch.testing.assert_close(absent, suppressed, rtol=0, atol=0)
     assert not torch.allclose(absent, conditioned, rtol=0, atol=1e-7)
+
+
+def test_prediction_runs_feature_cnn_only_at_analysis_resolution():
+    op = _operator()
+    seen = []
+    hooks = [layer.register_forward_pre_hook(lambda layer, inputs: seen.append(inputs[0].shape))
+             for layer in op.encoder.modules() if isinstance(layer, torch.nn.Conv2d)]
+    try:
+        gain = torch.rand(2, 3, 37, 29)
+        controls = op.predict(gain, gain * .7)
+        assert controls["features"].shape == (2, 8, 8, 8)
+        assert controls["guide_weight"].shape == (1, 6, 1, 1)
+        assert controls["guide_bias"].shape == (1,)
+        assert seen and all(shape[-2:] == (8, 8) for shape in seen)
+        seen.clear()
+        op.render(gain, gain * .7, controls)
+        assert not seen
+        assert sum(p.numel() for p in op.guidance_head.parameters()) == 7
+    finally:
+        for hook in hooks:
+            hook.remove()
+
+
+def test_staged_grid_render_matches_forward_outputs_and_gradients():
+    import copy
+
+    torch.manual_seed(29)
+    direct_op = _operator()
+    staged_op = copy.deepcopy(direct_op)
+    direct_gain = torch.rand(2, 3, 11, 17, requires_grad=True)
+    staged_gain = direct_gain.detach().clone().requires_grad_()
+    direct = direct_op(direct_gain, direct_gain * .7)
+    staged_base = staged_gain * .7
+    controls = staged_op.predict(staged_gain, staged_base)
+    staged = staged_op.render(staged_gain, staged_base, controls)
+    torch.testing.assert_close(staged["image"], direct["image"], rtol=0, atol=0)
+    for key in direct["maps"]:
+        torch.testing.assert_close(staged["maps"][key], direct["maps"][key], rtol=0, atol=0)
+    direct["image"].square().mean().backward()
+    staged["image"].square().mean().backward()
+    torch.testing.assert_close(staged_gain.grad, direct_gain.grad, rtol=0, atol=0)
+    for direct_p, staged_p in zip(direct_op.parameters(), staged_op.parameters()):
+        assert direct_p.grad is not None and staged_p.grad is not None
+        torch.testing.assert_close(staged_p.grad, direct_p.grad, rtol=0, atol=0)
+    assert staged_op.render(staged_gain, staged_base, controls, return_maps=False)["maps"] == {}
+    without_maps = direct_op(direct_gain, direct_gain * .7, return_maps=False)
+    assert without_maps["maps"] == {}
+    torch.testing.assert_close(without_maps["image"], direct["image"], rtol=0, atol=0)

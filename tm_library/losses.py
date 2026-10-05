@@ -31,11 +31,18 @@ def gradient_error(output, target):
     return value
 
 
-def masked_semantic_bce(logits, labels, valid):
-    """No labels means zero loss/gradient, rather than fabricated negatives."""
+def masked_semantic_bce(logits, labels, valid, supervision_weight=None):
+    """Normalize by label availability; runtime trust attenuates numerator only.
+
+    ``supervision_weight`` already includes annotation validity and optional
+    pseudo-label confidence. The three-argument manual-label API is unchanged.
+    """
     if logits.shape != labels.shape or valid.shape != labels.shape:
         raise ValueError('semantic logits, labels and validity shapes must agree')
-    return (F.binary_cross_entropy_with_logits(logits, labels, reduction='none') * valid).sum() / valid.sum().clamp_min(1)
+    weight=valid if supervision_weight is None else supervision_weight
+    if weight.shape != labels.shape:
+        raise ValueError('semantic supervision weight shape must agree with labels')
+    return (F.binary_cross_entropy_with_logits(logits, labels, reduction='none') * weight).sum() / valid.sum().clamp_min(1)
 
 
 def region_balanced_error(output, target, masks, valid, confidence):
@@ -59,6 +66,6 @@ class CompositeLoss:
                  'region': region_balanced_error(output, target, batch['semantics'], batch['semantic_valid'], batch['confidence']),
                  'semantic': output.sum() * 0}
         if 'semantic_logits' in result:
-            terms['semantic'] = masked_semantic_bce(result['semantic_logits'], batch['semantics'], batch['semantic_valid'])
+            terms['semantic'] = masked_semantic_bce(result['semantic_logits'], batch['semantics'], batch['semantic_valid'],batch.get('semantic_supervision_weight'))
         total = sum(getattr(self.config, name) * value for name, value in terms.items())
         return total, terms

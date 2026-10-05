@@ -1,5 +1,7 @@
 # TM 算法库实现与独立 review 记录
 
+> 本页为 v1 历史记录；当前组合架构和预训练分割模型接入的实现、验证见 [v2 review](tm_library_v2_review.md)。
+
 日期：2026-10-05。基础版本：`e0f82e9932b560a53a63d5eaf1a85ceefe4c91d3`，工作分支：`feat/tm-algorithm-library`。
 
 本次交付是可训练、可评测的研究实现。原 `photofinishing` 源码和 checkpoint 文件保持原样；库通过封装复用 Gain、GTM、chroma 和 gamma。五类候选替换局部 TM，原 baseline 单独保留。具体接口见 [设计](superpowers/specs/2026-10-05-tm-library-design.md)，使用方式见 [README](../tm_library/README.md)。

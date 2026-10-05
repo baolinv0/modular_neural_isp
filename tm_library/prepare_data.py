@@ -35,7 +35,8 @@ def _index(directory: Path, suffixes: set[str]) -> dict[str, Path]:
 def build_manifest(input_dir, target_dir, output, *, input_encoding,
                    metadata_dir=None, semantics_dir=None, confidence_dir=None,
                    input_layout=None, target_layout=None, semantics_layout=None,
-                   scene='unknown', camera='unknown', target_aligned=False):
+                   scene='unknown', camera='unknown', burst_id='unknown',
+                   subject_id='unknown', scenario='unknown', target_aligned=False):
     """Construct and validate all pairs before writing output.
 
     ``target_aligned=True`` asserts the caller has aligned the target captures;
@@ -66,7 +67,8 @@ def build_manifest(input_dir, target_dir, output, *, input_encoding,
         row = {'id':stem,'input':os.path.relpath(path,output.parent),
                'target':os.path.relpath(targets[stem],output.parent),
                'input_encoding':input_encoding, 'target_aligned':True,
-               'scene':str(scene),'camera':str(camera)}
+               'scene':scene,'camera':camera,'burst_id':burst_id,
+               'subject_id':subject_id,'scenario':scenario}
         for field, indexed in indices.items():
             row[field] = os.path.relpath(indexed[stem],output.parent)
         for field, layout in [('input',input_layout),('target',target_layout),('semantics',semantics_layout)]:
@@ -106,6 +108,9 @@ def main(argv=None):
         parser.add_argument(f'--{field}-layout',choices=('HWC','CHW'))
     parser.add_argument('--scene',default='unknown')
     parser.add_argument('--camera',default='unknown')
+    parser.add_argument('--burst-id',default='unknown')
+    parser.add_argument('--subject-id',default='unknown')
+    parser.add_argument('--scenario',default='unknown')
     args = vars(parser.parse_args(argv))
     print(build_manifest(**args))
 

@@ -73,22 +73,28 @@ def reconstruct_pyramid(pyramid: Sequence[Tensor]) -> Tensor:
     return image
 
 
-def multiscale_fusion(exposures: Tensor, weights: Tensor, levels: int) -> tuple[Tensor, list[Tensor]]:
+def multiscale_fusion(exposures: Tensor, weights: Tensor, levels: int, *, return_maps: bool = True) -> tuple[Tensor, list[Tensor]]:
     """Fuse BK3HW exposures using BKHW weights, normalized at every scale.
 
     The input weights are expected to be nonnegative with positive sums, as
     provided by softmax. The normalization also permits exact one-hot weights.
+    With diagnostics disabled, normalized scale weights are consumed one at a
+    time and no diagnostic list retains them. The pyramids remain intrinsic to
+    this renderer's multiscale mechanism.
     """
     batch, count, channels, height, width = exposures.shape
     if weights.shape != (batch, count, height, width):
         raise ValueError("exposure weights must have shape (B,K,H,W)")
     rgb_pyramid = laplacian_pyramid(exposures.reshape(batch * count, channels, height, width), levels)
     raw_weights = gaussian_pyramid(weights, levels)
-    scale_weights = [scale / scale.sum(dim=1, keepdim=True).clamp_min(torch.finfo(scale.dtype).tiny) for scale in raw_weights]
+    scale_weights = []
     blended = []
-    for band, weight in zip(rgb_pyramid, scale_weights):
+    for band, scale in zip(rgb_pyramid, raw_weights):
+        weight = scale / scale.sum(dim=1, keepdim=True).clamp_min(torch.finfo(scale.dtype).tiny)
         band = band.reshape(batch, count, channels, *band.shape[-2:])
         blended.append((band * weight.unsqueeze(2)).sum(dim=1))
+        if return_maps:
+            scale_weights.append(weight)
     return reconstruct_pyramid(blended), scale_weights
 
 
@@ -107,14 +113,28 @@ class ExposureFusionOperator(nn.Module):
         self.weight_head = nn.Conv2d(config.width, len(config.exposures), kernel_size=1)
         self.register_buffer("exposure_ev", torch.tensor(config.exposures, dtype=torch.float32))
 
-    def forward(self, gain: Tensor, base: Tensor, semantics: Tensor | None = None, confidence: Tensor | None = None) -> dict:
+    def predict(self, gain: Tensor, base: Tensor, semantics: Tensor | None = None, confidence: Tensor | None = None) -> dict:
+        """Predict only analysis-resolution feature and exposure-weight logits."""
         features = self.encoder(gain, base, semantics, confidence)
-        logits = F.interpolate(self.weight_head(features), size=gain.shape[-2:], mode="bilinear", align_corners=False)
+        return {"features": features, "weight_logits": self.weight_head(features),
+                "exposure_ev": self.exposure_ev}
+
+    def render(self, gain: Tensor, base: Tensor, controls: dict, return_maps: bool = True) -> dict:
+        """Synthesize full-resolution exposures and reconstruct their pyramids."""
+        logits = F.interpolate(controls["weight_logits"], size=gain.shape[-2:], mode="bilinear", align_corners=False)
         weights = logits.softmax(dim=1)
-        multipliers = torch.exp2(self.exposure_ev.to(dtype=gain.dtype))[None, :, None, None, None]
+        multipliers = torch.exp2(controls["exposure_ev"].to(gain))[None, :, None, None, None]
         radiance = gain.clamp_min(0).unsqueeze(1) * multipliers
         exposures = radiance / (1 + radiance)
-        image, scale_weights = multiscale_fusion(exposures, weights, self.config.pyramid_levels)
-        maps = {"exposures": exposures, "weights": weights}
-        maps.update({f"weights_scale_{index}": scale for index, scale in enumerate(scale_weights)})
-        return {"image": image, "features": features, "maps": maps}
+        image, scale_weights = multiscale_fusion(exposures, weights, self.config.pyramid_levels,
+                                                return_maps=return_maps)
+        maps = {}
+        if return_maps:
+            maps = {"exposures": exposures, "weights": weights}
+            maps.update({f"weights_scale_{index}": scale for index, scale in enumerate(scale_weights)})
+        return {"image": image, "features": controls["features"], "maps": maps}
+
+    def forward(self, gain: Tensor, base: Tensor, semantics: Tensor | None = None,
+                confidence: Tensor | None = None, *, return_maps: bool = True) -> dict:
+        controls = self.predict(gain, base, semantics, confidence)
+        return self.render(gain, base, controls, return_maps=return_maps)

@@ -53,28 +53,45 @@ class SpatialGridOperator(nn.Module):
         self.grid_depth = config.grid_depth
         self.encoder = ConditionEncoder(config)
         self.grid_head = nn.Conv2d(config.width, 5 * config.grid_depth, 1)
-        self.guidance_head = nn.Sequential(
-            nn.Conv2d(config.width + 6, config.width, 1),
-            nn.SiLU(),
-            nn.Conv2d(config.width, 1, 1),
-        )
+        # A shared RGB affine guide needs only seven learned coefficients.
+        # Rendering never expands low-resolution width-channel features.
+        self.guidance_head = nn.Conv2d(6, 1, 1)
 
-    def forward(self, gain, base, semantics=None, confidence=None):
+    def predict(self, gain, base, semantics=None, confidence=None):
+        """Predict a 3D lattice at analysis resolution and expose guide coefficients."""
         features = self.encoder(gain, base, semantics, confidence)
         pooled = F.adaptive_avg_pool2d(features, (self.grid_size, self.grid_size))
         grid = self.grid_head(pooled).reshape(
             gain.shape[0], 5, self.grid_depth, self.grid_size, self.grid_size)
-        full_features = F.interpolate(features, size=gain.shape[-2:],
-                                      mode="bilinear", align_corners=False)
-        guide_input = torch.cat((gain, base, full_features), dim=1)
-        guidance = torch.sigmoid(self.guidance_head(guide_input))
+        return {"features": features, "grid": grid,
+                "guide_weight": self.guidance_head.weight,
+                "guide_bias": self.guidance_head.bias}
+
+    def render(self, gain, base, controls, return_maps=True):
+        """Slice controls using only scalar full-resolution affine guidance.
+
+        Two RGB dot products implement the 6->1 affine transform without even
+        concatenating full-resolution gain/base. The exposed coefficient tensors
+        retain autograd links to the shared learned guide.
+        """
+        grid = controls["grid"]
+        weight = controls["guide_weight"]
+        guidance = torch.sigmoid(
+            F.conv2d(gain, weight[:, :3], controls["guide_bias"])
+            + F.conv2d(base, weight[:, 3:]))
         raw = slice_bilateral_grid(grid, guidance)
         gate = torch.sigmoid(raw[:, :1])
         a, b, c = (F.softplus(raw[:, 1:4]) + 1e-4).split(1, dim=1)
         local_gain = .25 + 3.75 * torch.sigmoid(raw[:, 4:5])
         local = tone_curve(gain * local_gain, a, b, c)
         image = (1 - gate) * base + gate * local
-        coefficients = torch.cat((gate, a, b, c, local_gain), dim=1)
-        return {"image": image, "features": features,
-                "maps": {"grid": grid, "guidance": guidance,
-                         "coefficients": coefficients}}
+        maps = {}
+        if return_maps:
+            coefficients = torch.cat((gate, a, b, c, local_gain), dim=1)
+            maps = {"grid": grid, "guidance": guidance,
+                    "coefficients": coefficients}
+        return {"image": image, "features": controls["features"], "maps": maps}
+
+    def forward(self, gain, base, semantics=None, confidence=None, *, return_maps=True):
+        controls = self.predict(gain, base, semantics, confidence)
+        return self.render(gain, base, controls, return_maps=return_maps)

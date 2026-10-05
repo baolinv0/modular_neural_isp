@@ -3,11 +3,13 @@ model:
   semantic_mode: explicit
   width: 8
   analysis_size: 16
+  architecture_version: 2
 data:
   train_manifest: ../../data/tm-library-synthetic/train.jsonl
   val_manifest: ../../data/tm-library-synthetic/val.jsonl
   image_size: 32
   augment: true
+  split_policy: scene
 training:
   epochs: 2
   batch_size: 1
@@ -20,11 +22,15 @@ training:
   scheduler_step: 1
   scheduler_gamma: 0.95
   cpu_threads: 1
+  protocol: joint
 loss:
   rgb: 1.0
   log_luma: 0.1
   gradient: 0.1
-  region: 0.1
+  region: 0.0
   semantic: 0.1
 upstream_checkpoint: ../../photofinishing/models/photofinishing_s24-style-0.pth
 output_dir: ../../runs/tm_library/gain_residual_explicit
+segmentation:
+  backend: none
+  source: manifest

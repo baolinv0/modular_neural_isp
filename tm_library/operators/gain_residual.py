@@ -27,15 +27,32 @@ class GainResidualOperator(nn.Module):
         nn.init.zeros_(self.ev_head.weight)
         nn.init.zeros_(self.ev_head.bias)
 
-    def forward(self, gain, base, semantics=None, confidence=None):
+    def predict(self, gain, base, semantics=None, confidence=None):
         features = self.encoder(gain, base, semantics, confidence)
         lowres_ev = self.max_ev * torch.tanh(self.ev_head(features))
+        return {"features": features, "lowres_ev": lowres_ev}
+
+    def render(self, gain, base, controls, return_maps=True):
+        """Render on GTM for standalone use, or a model-selected anchor.
+
+        Optional ``ev_scale`` is the model's full-resolution strength/ROI gate.
+        Applying it before exp2 interpolates exposure in stops and retains
+        exact identity for a zero gate, even with diagnostics disabled.
+        """
+        lowres_ev = controls["lowres_ev"]
         ev = guided_upsample(lowres_ev, luminance(base),
                              radius=self.filter_radius, eps=self.filter_eps)
         ev = ev.clamp(-self.max_ev, self.max_ev)
+        if "ev_scale" in controls:
+            ev = ev * controls["ev_scale"]
         local_gain = torch.exp2(ev)
         # Leave pre-chroma linear RGB unclipped. Multiplying every channel by
         # the same scalar preserves chromaticity, including amplified colors.
         image = base * local_gain
-        return {"image": image, "features": features,
-                "maps": {"lowres_ev": lowres_ev, "ev": ev, "gain": local_gain}}
+        maps = ({"lowres_ev": lowres_ev, "ev": ev, "gain": local_gain}
+                if return_maps else {})
+        return {"image": image, "features": controls["features"], "maps": maps}
+
+    def forward(self, gain, base, semantics=None, confidence=None, *, return_maps=True):
+        return self.render(gain, base, self.predict(gain, base, semantics, confidence),
+                           return_maps=return_maps)

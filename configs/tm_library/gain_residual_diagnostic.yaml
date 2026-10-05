@@ -4,6 +4,8 @@ model:
   width: 8
   analysis_size: 16
   architecture_version: 2
+  freeze_backbone: true
+  post_mode: fixed_reference
 data:
   train_manifest: ../../data/tm-library-synthetic/train.jsonl
   val_manifest: ../../data/tm-library-synthetic/val.jsonl
@@ -22,7 +24,7 @@ training:
   scheduler_step: 1
   scheduler_gamma: 0.95
   cpu_threads: 1
-  protocol: joint
+  protocol: operator_diagnostic
 loss:
   rgb: 1.0
   log_luma: 0.1
@@ -30,7 +32,7 @@ loss:
   region: 0.0
   semantic: 0.1
 upstream_checkpoint: ../../photofinishing/models/photofinishing_s24-style-0.pth
-output_dir: ../../runs/tm_library/gain_residual
+output_dir: ../../runs/tm_library/gain_residual_diagnostic
 segmentation:
   backend: none
   source: manifest

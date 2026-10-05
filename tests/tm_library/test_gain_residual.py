@@ -134,3 +134,34 @@ def test_black_white_odd_tiny_and_batch_inputs_have_finite_maps_and_gradients(sh
         assert torch.isfinite(tensor).all()
     result["image"].sum().backward()
     assert base.grad is not None and torch.isfinite(base.grad).all()
+
+
+def test_staged_ev_gate_scales_exposure_before_exponentiation_and_can_preserve_anchor():
+    op = operator(max_ev=1.2)
+    with torch.no_grad():
+        op.ev_head.bias.fill_(.7)
+    base = torch.rand(2, 3, 9, 13) + .1
+    predicted = op.predict(base * 2, base)
+    direct = op(base * 2, base)
+    staged = op.render(base * 2, base, predicted, return_maps=False)
+    torch.testing.assert_close(staged["image"], direct["image"])
+    assert staged["maps"] == {}
+    half = dict(predicted, ev_scale=torch.full((2, 1, 9, 13), .5))
+    gated = op.render(base * 2, base, half, return_maps=False)
+    torch.testing.assert_close(gated["image"] / base, (direct["image"] / base).sqrt())
+    zero = dict(predicted, ev_scale=torch.zeros(2, 1, 9, 13))
+    assert torch.equal(op.render(base * 2, base, zero, return_maps=False)["image"], base)
+
+
+def test_staged_and_forward_gradients_match_after_residual_head_learns():
+    op = operator()
+    with torch.no_grad():
+        op.ev_head.weight.fill_(.2)
+    base = torch.rand(1, 3, 5, 7).requires_grad_()
+    parameters = tuple(op.parameters())
+    direct = op(base * 2, base, return_maps=False)["image"]
+    staged = op.render(base * 2, base, op.predict(base * 2, base), return_maps=False)["image"]
+    direct_grads = torch.autograd.grad(direct.square().mean(), (base, *parameters))
+    staged_grads = torch.autograd.grad(staged.square().mean(), (base, *parameters))
+    for actual, expected in zip(staged_grads, direct_grads):
+        torch.testing.assert_close(actual, expected)

@@ -1,9 +1,11 @@
 model:
-  algorithm: gain_residual
+  algorithm: baseline
   semantic_mode: none
   width: 8
   analysis_size: 16
   architecture_version: 2
+  base_algorithm: base_detail
+  correction_algorithm: gain_residual
 data:
   train_manifest: ../../data/tm-library-synthetic/train.jsonl
   val_manifest: ../../data/tm-library-synthetic/val.jsonl
@@ -30,7 +32,7 @@ loss:
   region: 0.0
   semantic: 0.1
 upstream_checkpoint: ../../photofinishing/models/photofinishing_s24-style-0.pth
-output_dir: ../../runs/tm_library/gain_residual
+output_dir: ../../runs/tm_library/base_detail_c
 segmentation:
   backend: none
   source: manifest

@@ -1,6 +1,8 @@
+# USER PLACEHOLDER: supply your checkpoint; mapping assumes model channels 1=person, 2=skin, 3=sky.
+# Verify channel indices, output container/key and training preprocessing against your actual model.
 model:
   algorithm: gain_residual
-  semantic_mode: none
+  semantic_mode: explicit
   width: 8
   analysis_size: 16
   architecture_version: 2
@@ -30,7 +32,26 @@ loss:
   region: 0.0
   semantic: 0.1
 upstream_checkpoint: ../../photofinishing/models/photofinishing_s24-style-0.pth
-output_dir: ../../runs/tm_library/gain_residual
+output_dir: ../../runs/tm_library/gain_residual_torchscript
 segmentation:
-  backend: none
-  source: manifest
+  backend: torchscript
+  source: model
+  weights: ../../models/USER_SEGMENTER.ts
+  input_encoding: srgb
+  input_size:
+  - 256
+  - 256
+  mean:
+  - 0.485
+  - 0.456
+  - 0.406
+  std:
+  - 0.229
+  - 0.224
+  - 0.225
+  output_mode: softmax_logits
+  output_key: null
+  class_groups:
+  - - 1
+  - - 2
+  - - 3

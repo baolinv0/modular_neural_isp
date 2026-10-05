@@ -112,3 +112,61 @@ def test_operator_renders_pyramid_result_and_reports_only_tensor_maps():
     assert all(isinstance(value, torch.Tensor) for value in result["maps"].values())
     for index, scale in enumerate(scales):
         torch.testing.assert_close(result["maps"][f"weights_scale_{index}"], scale)
+
+
+def test_fusion_prediction_keeps_weights_and_cnn_at_analysis_resolution():
+    operator = make_operator(width=8, analysis_size=8)
+    seen = []
+    hooks = [layer.register_forward_pre_hook(lambda layer, inputs: seen.append(inputs[0].shape))
+             for layer in operator.modules() if isinstance(layer, torch.nn.Conv2d)]
+    try:
+        gain = torch.rand(2, 3, 37, 29)
+        base = gain / (1 + gain)
+        controls = operator.predict(gain, base)
+        assert controls["features"].shape == (2, 8, 8, 8)
+        assert controls["weight_logits"].shape == (2, len(operator.config.exposures), 8, 8)
+        assert seen and all(shape[-2:] == (8, 8) for shape in seen)
+        seen.clear()
+        result = operator.render(gain, base, controls)
+        assert result["image"].shape == gain.shape
+        assert not seen
+    finally:
+        for hook in hooks:
+            hook.remove()
+
+
+def test_staged_fusion_render_matches_forward_outputs_and_gradients():
+    import copy
+
+    torch.manual_seed(31)
+    direct_op = make_operator(width=8, analysis_size=8, pyramid_levels=4)
+    staged_op = copy.deepcopy(direct_op)
+    direct_gain = torch.rand(2, 3, 11, 17, requires_grad=True)
+    staged_gain = direct_gain.detach().clone().requires_grad_()
+    direct = direct_op(direct_gain, direct_gain / (1 + direct_gain))
+    base = staged_gain / (1 + staged_gain)
+    controls = staged_op.predict(staged_gain, base)
+    staged = staged_op.render(staged_gain, base, controls)
+    torch.testing.assert_close(staged["image"], direct["image"], rtol=0, atol=0)
+    for key in direct["maps"]:
+        torch.testing.assert_close(staged["maps"][key], direct["maps"][key], rtol=0, atol=0)
+    direct["image"].square().mean().backward()
+    staged["image"].square().mean().backward()
+    torch.testing.assert_close(staged_gain.grad, direct_gain.grad, rtol=0, atol=0)
+    for direct_p, staged_p in zip(direct_op.parameters(), staged_op.parameters()):
+        assert direct_p.grad is not None and staged_p.grad is not None
+        torch.testing.assert_close(staged_p.grad, direct_p.grad, rtol=0, atol=0)
+    assert staged_op.render(staged_gain, base, controls, return_maps=False)["maps"] == {}
+    without_maps = direct_op(direct_gain, direct_gain / (1 + direct_gain), return_maps=False)
+    assert without_maps["maps"] == {}
+    torch.testing.assert_close(without_maps["image"], direct["image"], rtol=0, atol=0)
+
+
+def test_fusion_can_omit_diagnostic_scale_weights_without_changing_reconstruction():
+    module = fusion_module()
+    exposures = torch.rand(2, 3, 3, 17, 19)
+    weights = torch.rand(2, 3, 17, 19).softmax(dim=1)
+    expected, scales = module.multiscale_fusion(exposures, weights, levels=4)
+    actual, omitted = module.multiscale_fusion(exposures, weights, levels=4, return_maps=False)
+    assert len(scales) == 4 and omitted == []
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)

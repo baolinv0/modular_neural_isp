@@ -105,26 +105,52 @@ class ConditionEncoder(nn.Module):
         self.net = nn.Sequential(nn.Conv2d(6 + config.semantic_channels, config.width, 3, padding=1),
                                  nn.SiLU(), nn.Conv2d(config.width, config.width, 3, padding=1), nn.SiLU())
 
+    @staticmethod
+    def resize_analysis(value, size):
+        """Reduce rendered images, never exchange nonlinear TM with downsampling."""
+        if value.shape[-2:] == tuple(size):
+            return value
+        if all(source >= target for source, target in zip(value.shape[-2:], size)):
+            return F.interpolate(value, size=size, mode='area')
+        return F.interpolate(value, size=size, mode='bilinear', align_corners=False, antialias=True)
+
+    def semantic_inputs(self, gain, semantics=None, confidence=None):
+        """Validate separate semantic resolution; gate probabilities before reducing.
+
+        Confidence is either shared B1HW or per-semantic-channel BCHW. Missing
+        confidence means trusted labels; missing semantics means absent labels.
+        S0 and S1 intentionally ignore supplied inference conditioning.
+        """
+        if self.config.semantic_mode != 'explicit':
+            return None
+        b = gain.shape[0]
+        for name, value, channels in [('semantics', semantics, (self.config.semantic_channels,)),
+                                       ('confidence', confidence, (1, self.config.semantic_channels))]:
+            if value is None:
+                continue
+            if (not torch.is_tensor(value) or value.ndim != 4 or value.shape[0] != b or
+                value.shape[1] not in channels or min(value.shape[-2:]) < 1):
+                raise ValueError(f'{name} must have matching batch, valid channels and nonempty spatial dimensions')
+            if not value.is_floating_point() or not value.isfinite().all() or (value < 0).any() or (value > 1).any():
+                raise ValueError(f'{name} must be finite floating probabilities in [0,1]')
+        if semantics is None:
+            return None
+        if confidence is not None and confidence.shape[-2:] != semantics.shape[-2:]:
+            raise ValueError('confidence and semantics must have matching spatial resolution')
+        masks = semantics.to(gain)
+        return masks if confidence is None else masks * confidence.to(gain)
+
     def forward(self, gain, base, semantics=None, confidence=None):
         if gain.ndim != 4 or gain.shape[1] != 3 or base.shape != gain.shape:
             raise ValueError('gain/base must have identical (B,3,H,W) shapes')
-        b, _, h, w = gain.shape
-        shape = (b, self.config.semantic_channels, h, w)
-        masks = gain.new_zeros(shape)
-        if self.config.semantic_mode == 'explicit' and confidence is not None:
-            if confidence.shape != (b, 1, h, w):
-                raise ValueError('confidence must have shape (B,1,H,W)')
-            if not confidence.isfinite().all() or (confidence < 0).any() or (confidence > 1).any():
-                raise ValueError('confidence must be finite probabilities in [0,1]')
-        if self.config.semantic_mode == 'explicit' and semantics is not None:
-            if semantics.shape != shape:
-                raise ValueError(f'semantics must have shape {shape}')
-            if not semantics.isfinite().all() or (semantics < 0).any() or (semantics > 1).any():
-                raise ValueError('semantics must be finite probabilities in [0,1]')
-            masks = semantics.to(gain)
-            if confidence is not None:
-                masks = masks * confidence.to(gain)
-        conditioning = torch.cat((gain, base, masks), 1)
-        conditioning = F.interpolate(conditioning, size=(self.config.analysis_size,) * 2,
-                                     mode='bilinear', align_corners=False)
-        return self.net(conditioning)
+        if not gain.is_floating_point() or not base.is_floating_point() or not gain.isfinite().all() or not base.isfinite().all():
+            raise ValueError('gain/base must be finite floating RGB')
+        size = (self.config.analysis_size,) * 2
+        masks = self.semantic_inputs(gain, semantics, confidence)
+        # Resize each input first. In particular no full-resolution 9-channel
+        # concatenation or full-size allocation of missing semantic channels.
+        gain_small = self.resize_analysis(gain, size)
+        base_small = self.resize_analysis(base.to(gain), size)
+        masks_small = (gain.new_zeros(gain.shape[0], self.config.semantic_channels, *size)
+                       if masks is None else self.resize_analysis(masks, size))
+        return self.net(torch.cat((gain_small, base_small, masks_small), 1))

@@ -34,7 +34,7 @@ def test_extreme_tiny_odd_inputs_have_finite_normalized_monotonic_maps(shape, va
     torch.testing.assert_close(curves[..., -1], torch.ones_like(curves[..., -1]))
     assert (weights >= 0).all()
     torch.testing.assert_close(weights.sum(1), torch.ones_like(weights[:, 0]))
-    if value in (0.0, 1.0):
+    if value == 0.0:
         torch.testing.assert_close(result["image"], gain)
 
 
@@ -104,3 +104,49 @@ def test_image_loss_backpropagates_to_inputs_curves_weights_and_encoder():
         assert value.abs().sum() > 0
     encoder_grads = [p.grad for p in operator.encoder.parameters() if p.grad is not None]
     assert encoder_grads and sum(g.abs().sum() for g in encoder_grads) > 0
+
+
+def test_highlight_ramp_retains_order_and_positive_gradient_with_fixed_identity_curves():
+    operator = make_operator()
+    with torch.no_grad():
+        operator.curve_logits.fill_(0.)
+        operator.weight_head.weight.zero_()
+        operator.weight_head.bias.zero_()
+    gain = torch.tensor([1., 2., 4., 8.]).view(1, 1, 1, 4).expand(1, 3, 1, 4).clone().requires_grad_()
+    image = operator(gain, gain)["image"]
+    expected = torch.tensor([.5, 2 / 3, .8, 8 / 9]).view(1, 1, 1, 4).expand_as(image)
+    torch.testing.assert_close(image, expected)
+    assert (image.diff(dim=-1) > 0).all()
+    image.sum().backward()
+    assert torch.isfinite(gain.grad).all() and (gain.grad > 0).all()
+
+
+def test_staged_render_matches_forward_without_retaining_maps_or_expert_rgb_stack():
+    operator = make_operator()
+    gain = (torch.rand(2, 3, 9, 13) * 3).requires_grad_()
+    predicted = operator.predict(gain, gain)
+    direct = operator(gain, gain)
+    staged = operator.render(gain, gain, predicted, return_maps=False)
+    torch.testing.assert_close(staged["image"], direct["image"])
+    torch.testing.assert_close(staged["features"], direct["features"])
+    assert staged["maps"] == {}
+    saved_shapes = []
+    def record(tensor):
+        saved_shapes.append(tuple(tensor.shape))
+        return tensor
+    with torch.autograd.graph.saved_tensors_hooks(record, lambda tensor: tensor):
+        operator.render(gain, gain, predicted, return_maps=False)["image"].sum().backward()
+    assert (2, 3, 3, 9, 13) not in saved_shapes
+    assert (2, 3, 3 * 9 * 13) not in saved_shapes
+
+
+def test_staged_and_forward_gradients_match_for_inputs_and_all_parameters():
+    operator = make_operator()
+    gain = (torch.rand(1, 3, 5, 7) * 2).requires_grad_()
+    parameters = tuple(operator.parameters())
+    direct = operator(gain, gain, return_maps=False)["image"]
+    staged = operator.render(gain, gain, operator.predict(gain, gain), return_maps=False)["image"]
+    direct_grads = torch.autograd.grad(direct.square().mean(), (gain, *parameters))
+    staged_grads = torch.autograd.grad(staged.square().mean(), (gain, *parameters))
+    for actual, expected in zip(staged_grads, direct_grads):
+        torch.testing.assert_close(actual, expected)

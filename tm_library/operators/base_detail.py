@@ -10,7 +10,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from tm_library.common import ConditionEncoder, apply_luminance, luminance
+from tm_library.common import ConditionEncoder, apply_luminance, guided_upsample, luminance
 
 
 def _box_mean(value, radius):
@@ -38,6 +38,9 @@ class BaseDetailOperator(nn.Module):
     Thus detail gain cannot cancel out of reconstruction. A constant field has
     zero detail, while its brightness remains adjustable by the base curve.
     Input RGB chroma ratios are retained before subsequent pipeline gamut work.
+    Base contrast/shift are spatial analysis-resolution controls, edge-aware
+    upsampled to the source. The fixed decomposition radius is in input pixels,
+    so its effective scene scale depends on the input resolution.
     """
 
     def __init__(self, config):
@@ -54,20 +57,27 @@ class BaseDetailOperator(nn.Module):
             nn.init.normal_(head.weight, std=1e-3)
             nn.init.zeros_(head.bias)
 
-    def forward(self, gain, base, semantics=None, confidence=None):
+    def predict(self, gain, base, semantics=None, confidence=None):
         features = self.encoder(gain, base, semantics, confidence)
+        base_logits = self.base_head(features)
+        return {"features": features,
+                "base_contrast": (math.log(2) * base_logits[:, :1].tanh()).exp(),
+                "base_shift": math.log(2) * self.max_ev * base_logits[:, 1:].tanh(),
+                "detail_gain": (math.log(2) * self.detail_head(features).tanh()).exp()}
+
+    def render(self, gain, base, controls, return_maps=True):
         source_y = luminance(gain).clamp_min(0)
         source_log = (source_y + 1e-6).log()
         smooth_base = _guided_log_base(source_log, self.radius, self.filter_eps)
         detail = source_log - smooth_base
 
-        controls = self.base_head(features).mean(dim=(-2, -1), keepdim=True)
-        contrast = (math.log(2) * controls[:, :1].tanh()).exp()
-        shift = math.log(2) * self.max_ev * controls[:, 1:].tanh()
-        detail_logits = F.interpolate(
-            self.detail_head(features), size=gain.shape[-2:], mode="bilinear", align_corners=False
-        )
-        detail_gain = (math.log(2) * detail_logits.tanh()).exp()
+        contrast = guided_upsample(controls["base_contrast"], source_y,
+                                  radius=self.radius, eps=self.filter_eps).clamp(.5, 2.)
+        shift_bound = math.log(2) * self.max_ev
+        shift = guided_upsample(controls["base_shift"], source_y,
+                               radius=self.radius, eps=self.filter_eps).clamp(-shift_bound, shift_bound)
+        detail_gain = F.interpolate(controls["detail_gain"], size=gain.shape[-2:],
+                                    mode="bilinear", align_corners=False)
         base_toned = F.logsigmoid(contrast * smooth_base + shift)
         reconstructed_y = (base_toned + detail_gain * detail).clamp(-30, 20).exp()
         # The log floor protects gradients; it must not introduce light into
@@ -76,7 +86,7 @@ class BaseDetailOperator(nn.Module):
         image = apply_luminance(gain, reconstructed_y)
         return {
             "image": image,
-            "features": features,
+            "features": controls["features"],
             "maps": {
                 "source_log": source_log,
                 "base": smooth_base,
@@ -85,5 +95,9 @@ class BaseDetailOperator(nn.Module):
                 "base_contrast": contrast,
                 "base_shift": shift,
                 "detail_gain": detail_gain,
-            },
+            } if return_maps else {},
         }
+
+    def forward(self, gain, base, semantics=None, confidence=None, *, return_maps=True):
+        return self.render(gain, base, self.predict(gain, base, semantics, confidence),
+                           return_maps=return_maps)

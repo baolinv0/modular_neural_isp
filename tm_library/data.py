@@ -12,6 +12,8 @@ Semantics are independent probabilities (person/skin/sky), never class IDs.
 Missing semantics produce zero semantics, confidence, and validity. Labelled
 masks default to unit confidence and validity. An inference sample lacking a
 target contains a zero target placeholder, never its unaligned reference.
+Optional scene/burst_id/subject_id/scenario strings are carried unchanged for
+split policy and grouped reports. Missing group labels are ``unknown``.
 """
 from __future__ import annotations
 
@@ -138,6 +140,9 @@ class PairedImageDataset(Dataset):
             if row['id'] in ids:
                 raise ValueError(f'duplicate id: {row["id"]}')
             ids.add(row['id'])
+            for field in ('scene', 'camera', 'burst_id', 'subject_id', 'scenario'):
+                if field in row and (not isinstance(row[field], str) or not row[field].strip()):
+                    raise ValueError(f'{row["id"]}: {field} must be a nonempty string')
             if row.get('input_encoding') not in ENCODINGS:
                 raise ValueError(f'{row["id"]}: input_encoding must explicitly name {sorted(ENCODINGS)}')
             if not row.get('input'):
@@ -232,5 +237,7 @@ class PairedImageDataset(Dataset):
                 if flip_v:
                     tensor = tensor.flip(-2)
                 tensors[key] = torch.rot90(tensor, rotation, (-2,-1)).contiguous()
-        tensors.update(id=row['id'], scene=str(row.get('scene','unknown')), camera=str(row.get('camera','unknown')))
+        tensors['id'] = row['id']
+        tensors.update({field:row.get(field, 'unknown')
+                        for field in ('scene', 'camera', 'burst_id', 'subject_id', 'scenario')})
         return tensors

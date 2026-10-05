@@ -32,7 +32,8 @@ def test_missing_labels_not_supervised_background(tmp_path):
     assert sample['semantic_valid'].shape == (3, 5, 7)
     assert torch.count_nonzero(sample['semantic_valid']) == 0
     assert torch.count_nonzero(sample['confidence']) == 0
-    assert set(sample) == {'input','target','semantics','confidence','semantic_valid','id','scene','camera'}
+    assert set(sample) == {'input','target','semantics','confidence','semantic_valid','id','scene','camera',
+                           'burst_id','subject_id','scenario'}
 
 
 def test_srgb_decoding_and_camera_green_normalized_wb(tmp_path):
@@ -260,3 +261,64 @@ def test_rectangular_augmentation_preserves_batch_shapes_and_synchronized_geomet
             torch.testing.assert_close(batch['input'],batch['semantics'])
             torch.testing.assert_close(batch['input'][:,:1],batch['confidence'])
             torch.testing.assert_close(batch['input'],batch['semantic_valid'])
+
+
+def test_group_metadata_propagates_and_builder_records_it(tmp_path):
+    from tm_library.prepare_data import build_manifest
+    fields = dict(scene='living_room', burst_id='burst_3', subject_id='person_2', scenario='side_light')
+    sample = dataset(manifest(tmp_path, [pair(tmp_path, **fields)]))[0]
+    assert {key:sample[key] for key in fields} == fields
+    inputs = tmp_path/'inputs'; targets = tmp_path/'targets'
+    inputs.mkdir(); targets.mkdir()
+    np.save(inputs/'a.npy', np.full((5,7,3), .2, np.float32))
+    np.save(targets/'a.npy', np.full((5,7,3), .4, np.float32))
+    path = build_manifest(inputs, targets, tmp_path/'prepared.jsonl',
+                          input_encoding='linear_srgb', target_aligned=True, **fields)
+    assert {key:dataset(path)[0][key] for key in fields} == fields
+
+
+def test_semantic_fixture_targets_depend_on_role_and_illumination_and_protect_intent(tmp_path):
+    from tm_library.synthetic import generate, semantic_target, linear_to_srgb, SEMANTIC_SCENARIOS
+    paths = generate(tmp_path/'semantic', num_train=6, num_val=6, size=32, seed=7, task='semantic')
+    train, val = dataset(paths['train']), dataset(paths['val'])
+    assert [row['scenario'] for row in train.records] == list(SEMANTIC_SCENARIOS)
+    assert {row['scene'] for row in train.records}.isdisjoint({row['scene'] for row in val.records})
+    for index, row in enumerate(train.records):
+        sample = train[index]
+        image = sample['input'].permute(1,2,0).numpy()
+        masks = sample['semantics'].permute(1,2,0).numpy()
+        reference = semantic_target(image, masks, row['scenario'])
+        np.testing.assert_allclose(reference, sample['target'].permute(1,2,0).numpy())
+        no_labels = semantic_target(image, np.zeros_like(masks), row['scenario'])
+        if row['scenario'] in ('portrait_backlight','two_people_unequal','side_light'):
+            assert np.max(np.abs(reference-no_labels)) > .01
+            # A scalar exposure changes brightness, preserving RGB chromaticity.
+            from tm_library.data import srgb_to_linear
+            restored = srgb_to_linear(reference)
+            ratios = restored / np.maximum(image, 1e-6)
+            np.testing.assert_allclose(ratios[...,0], ratios[...,1], atol=2e-5)
+            np.testing.assert_allclose(ratios[...,1], ratios[...,2], atol=2e-5)
+        else:
+            np.testing.assert_allclose(reference, linear_to_srgb(image), atol=1e-7)
+    repeat = generate(tmp_path/'repeat', num_train=1, num_val=6, size=32, seed=7, task='semantic')
+    torch.testing.assert_close(val[2]['input'], dataset(repeat['val'])[2]['input'])
+
+
+def test_semantic_target_has_bounded_illumination_gain_without_skin_color_target():
+    from tm_library.data import srgb_to_linear
+    from tm_library.synthetic import semantic_target
+    # Two subject roles with different illumination and different skin RGB.
+    image = np.array([[[.03,.02,.01], [.4,.25,.15], [.04,.06,.025]]],np.float32)
+    masks = np.ones_like(image); masks[...,2] = 0
+    target = srgb_to_linear(semantic_target(image,masks,'two_people_unequal'))
+    gain = target/image
+    assert gain.min() >= 1-1e-6 and gain.max() <= 1.5+1e-6
+    assert gain[0,0,0] > gain[0,1,0]
+    np.testing.assert_allclose(gain[...,0],gain[...,1],atol=2e-6)
+    assert not np.allclose(target[0,0],target[0,2])
+
+
+@pytest.mark.parametrize('field', ['scene','burst_id','subject_id','scenario'])
+def test_empty_group_metadata_is_rejected(tmp_path,field):
+    with pytest.raises(ValueError,match=field):
+        dataset(manifest(tmp_path,[pair(tmp_path,**{field:''})]))

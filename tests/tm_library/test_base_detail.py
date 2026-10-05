@@ -103,3 +103,54 @@ def test_exposure_changes_output_and_semantic_confidence_gates_controls():
     gated = operator(x, x, masks, torch.zeros(2, 1, 11, 15))["image"]
     assert not torch.allclose(conditioned, unconditioned)
     torch.testing.assert_close(gated, unconditioned)
+
+
+def test_flat_equal_luminance_regions_receive_spatial_semantic_base_shift():
+    operator = _operator(semantic_mode="explicit", analysis_size=17, filter_radius=1)
+    # Route one semantic channel through the real CNN into only the base shift.
+    # This fixture isolates spatial base control: detail remains zero everywhere.
+    with torch.no_grad():
+        for parameter in operator.parameters():
+            parameter.zero_()
+        operator.encoder.net[0].weight[0, 6, 1, 1] = 1.
+        operator.encoder.net[2].weight[0, 0, 1, 1] = 1.
+        operator.base_head.weight[1, 0, 0, 0] = 1.
+    gain = torch.full((1, 3, 17, 33), .4)
+    semantics = torch.zeros(1, 3, 17, 33)
+    semantics[:, 0, :, 17:] = 1.
+    prediction = operator.predict(gain, gain, semantics)
+    result = operator.render(gain, gain, prediction)
+    assert prediction["base_shift"].shape == (1, 1, 17, 17)
+    assert result["maps"]["base_shift"].shape == (1, 1, 17, 33)
+    assert result["image"][..., 25:].mean() > result["image"][..., :8].mean() + .01
+    torch.testing.assert_close(result["maps"]["detail"], torch.zeros_like(result["maps"]["detail"]), atol=2e-6, rtol=0)
+    gated = operator(gain, gain, semantics, torch.zeros(1, 1, 17, 33))
+    absent = operator(gain, gain)
+    torch.testing.assert_close(gated["image"], absent["image"])
+    assert result["maps"]["base_shift"][..., 25:].mean() > gated["maps"]["base_shift"][..., 25:].mean()
+
+
+def test_staged_spatial_controls_match_forward_and_disable_diagnostics():
+    operator = _operator(analysis_size=7)
+    gain = torch.rand(2, 3, 9, 13).requires_grad_()
+    predicted = operator.predict(gain, gain)
+    direct = operator(gain, gain)
+    staged = operator.render(gain, gain, predicted, return_maps=False)
+    torch.testing.assert_close(staged["image"], direct["image"])
+    torch.testing.assert_close(staged["features"], direct["features"])
+    assert staged["maps"] == {}
+    assert predicted["base_contrast"].shape == (2, 1, 7, 7)
+    staged["image"].sum().backward()
+    assert torch.isfinite(gain.grad).all()
+
+
+def test_staged_and_forward_gradients_match_for_spatial_base_and_detail_controls():
+    operator = _operator(analysis_size=7)
+    gain = (torch.rand(1, 3, 5, 7) + .1).requires_grad_()
+    parameters = tuple(operator.parameters())
+    direct = operator(gain, gain, return_maps=False)["image"]
+    staged = operator.render(gain, gain, operator.predict(gain, gain), return_maps=False)["image"]
+    direct_grads = torch.autograd.grad(direct.square().mean(), (gain, *parameters))
+    staged_grads = torch.autograd.grad(staged.square().mean(), (gain, *parameters))
+    for actual, expected in zip(staged_grads, direct_grads):
+        torch.testing.assert_close(actual, expected)
