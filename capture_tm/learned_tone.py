@@ -35,7 +35,8 @@ class ConditionalToneMapper(nn.Module):
         backend = ModularPhotofinishingBackend(weights)
         self.model = backend.model
         self.checkpoint_sha256 = backend.checkpoint_sha256
-        self.renderer_identity = f"conditional-{scheme}-adapters-v1:{backend.renderer_identity}"
+        version = 2 if scheme == "samsung" else 1
+        self.renderer_identity = f"conditional-{scheme}-adapters-v{version}:{backend.renderer_identity}"
         # 8 physical/statistical conditions and source/virtual-target histograms.
         self.conditioner = nn.Sequential(
             nn.Linear(8 + 2 * self.histogram_bins, 32), nn.SiLU(), nn.Linear(32, 10))
@@ -156,7 +157,9 @@ class ConditionalToneMapper(nn.Module):
         # Samsung's virtual gain changes the target PDF used to build the curve;
         # source and target histograms share the same display-intensity axis.
         source_pdf = self._soft_histogram(y.clamp(0, 1))
-        target_pdf = self._soft_histogram((y * virtual_gain).clamp(0, 1))
+        base_virtual_gain = prepared["gain"] * virtual_gain
+        histogram_gain = base_virtual_gain if self.scheme == "samsung" else virtual_gain
+        target_pdf = self._soft_histogram((y * histogram_gain).clamp(0, 1))
         confidence = prepared["reliability"]
         stats = torch.stack([
             prepared["capture_ev"] / 8., render_ev / 8.,
@@ -170,9 +173,11 @@ class ConditionalToneMapper(nn.Module):
         # One coordinated gain: checkpoint gain + render intent + learned EV.
         gain = prepared["gain"] * virtual_gain * torch.exp2(correction[:, :1, None, None])
         if self.scheme == "samsung":
-            # Fixed histogram contribution makes virtual-gain curve construction
-            # active even with zero-initialized learned adapters.
-            shift = ((target_pdf - source_pdf) * self.histogram_centers).sum(dim=1)
+            # Predict once from the stock/intended gain, then construct the
+            # explicit curve from the actual final gain, including the learned
+            # residual. This is acyclic and does not apply image gain twice.
+            final_target_pdf = self._soft_histogram((y * gain).clamp(0, 1))
+            shift = ((final_target_pdf - source_pdf) * self.histogram_centers).sum(dim=1)
             knee_offset = .06 * torch.tanh(4. * shift)
         else:
             knee_offset = torch.zeros_like(render_ev)

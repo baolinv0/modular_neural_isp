@@ -2,6 +2,8 @@
 
 核对日期：2026-10-05。下面区分既有机制和本实现的工程选择；保留原仓库作者、模型与 LICENSE。
 
+新版单帧/HDR 联合算法见 [JOINT_ALGORITHMS.md](JOINT_ALGORITHMS.md)。相较下表记录的旧 C1，新增三帧时序 CNN、完整 HDR 曝光计划、固定观测驱动融合，以及原 TM 上的条件 adapter 与离散期望联合训练。Samsung 的虚拟增益由原 GainNet、渲染意图及学习残差共同给出，并真实参与目标 PDF/曲线构造；不再把用户的曝光意图单独当成全部虚拟增益。这个修正依据专利中“由图像统计计算虚拟增益、再调整至目标亮度”的描述，仍属于神经网络改写而非传统公式逐项复现。
+
 | 来源 | 固定版本/原始资料 | 本实现使用的部分 |
 |---|---|---|
 | Modular Neural ISP | [baolinv0 fork](https://github.com/baolinv0/modular_neural_isp/tree/e0f82e9932b560a53a63d5eaf1a85ceefe4c91d3)；[Afifi et al. paper](https://arxiv.org/abs/2512.08564) | 原始 PhotofinishingModule 和原 style-0 权重，新增 frozen adapter；未复制别的分支未核验实现 |

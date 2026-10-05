@@ -47,16 +47,27 @@ to the stock pipeline even when all adapters are zero.
 ## Samsung virtual-gain curve construction
 
 Source and virtual-target PDFs are computed with soft histogram assignments on
-the same display-intensity axis. The target samples are `clip(R * 2**render_ev)`;
-the source samples are `clip(R)`. Both complete PDFs enter the conditional neural
-head, along with physical/render metadata, radiance statistics and confidence.
+the same display-intensity axis. Samsung v2 uses an acyclic two-stage construction:
 
-A fixed small difference-of-PDF-moments term also adjusts the shoulder knee.
-Therefore virtual gain changes curve construction even before adapter training,
-including in the frozen-TM group. This is a learned histogram-conditioned
-adaptation of the Samsung virtual-gain idea, not reproduction of its exact
-inverse-CDF construction. The direct virtual gain is applied only once to the
-radiance; PDF calculation does not multiply the image a second time.
+1. The source samples are `clip(R)`. Preliminary target samples are
+   `clip(R * G0)`, where `G0 = G_stock(R) * 2**render_ev`. Both complete PDFs
+   enter the conditional neural head with radiance statistics and confidence.
+2. The neural head predicts the residual once. The final gain is
+   `G = G0 * 2**delta_ev`. A final target PDF is recomputed from `clip(R * G)`;
+   its difference from the source PDF contributes a small bounded shoulder-knee
+   adjustment. The same `G` is applied once to radiance before compression.
+
+Thus stock GainNet and learned residual both take part in virtual-gain curve
+construction, including when explicit rendering intent is zero. A total gain of
+one produces the same source and target PDFs. The learned residual does not
+recursively feed its own predictor. PDF calculation never multiplies the image
+a second time.
+
+This is a learned histogram-conditioned adaptation of the Samsung virtual-gain
+idea, not reproduction of its exact inverse-CDF construction. Samsung v2 corrects
+the initial version's use of explicit intent alone for its target PDF. Apple v1
+is unchanged, including its conditional-adapter inputs. The frozen `prepare`
+outputs are unchanged and remain valid for both renderer versions.
 
 ## Trainability, caching and fair experiments
 
@@ -94,11 +105,17 @@ sources are [Apple US9432647B2](https://patents.google.com/patent/US9432647B2) a
 [Samsung US12243201B2](https://patents.google.com/patent/US12243201B2/en).
 
 The Samsung mechanism test also isolates PDF-conditioned curve construction from
-ordinary image gain: it replaces only the virtual-target PDF with the source PDF
-while keeping the same HDR input, coefficients, zero adapters and direct virtual
-gain. At render EV zero both paths are identical; at render EV -1 and +1 they
-differ. The complete path stays finite and mostly pixelwise monotone across
-[-1,0,+1] EV on the HDR probe. This verifies an active mechanism, not an aesthetic
-quality improvement. A factorial study using only `render_ev=0` does not test the
-benefit of nonidentity virtual-gain PDF conditioning; that requires an additional
-held-out rendering-intent sweep or ablation with fixed capture plans.
+ordinary image gain: it replaces the preliminary and final virtual-target PDFs
+with the source PDF while keeping the same HDR input, coefficients, zero adapters
+and direct total gain. With stock gain two, explicit EV -1 gives total gain one
+and both paths are identical; at explicit EV zero and +1 they differ. The complete
+path stays finite and mostly pixelwise monotone across [-1,0,+1] explicit EV on
+the HDR probe. A second test checks that equal final gains yield equal curves
+when the gain is reparameterized between stock gain and a constant learned
+residual; it catches accidental use of the preliminary PDF in the final curve.
+
+These tests verify an active mechanism and finite gradients, not aesthetic
+quality improvement. Factorial studies at `render_ev=0` include nonidentity
+virtual-gain conditioning whenever stock or residual gain makes the total gain
+differ from one. Attributing quality improvement specifically to the PDF term
+still requires its own held-out ablation with fixed capture plans.

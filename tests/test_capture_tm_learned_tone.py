@@ -87,6 +87,7 @@ def test_samsung_virtual_pdf_changes_curve_with_direct_gain_held_fixed(monkeypat
     """Ablate only target PDF; the same render EV still multiplies the image."""
     tone = make_tone("samsung", trainable=False)
     prepared = tone.prepare(fixture_rgb())
+    prepared["gain"] = torch.full_like(prepared["gain"], 2.)
     full = {ev: tone.render_prepared(prepared, render_ev=ev) for ev in (-1., 0., 1.)}
     original_histogram = tone._soft_histogram
     source_pdf = None
@@ -94,10 +95,10 @@ def test_samsung_virtual_pdf_changes_curve_with_direct_gain_held_fixed(monkeypat
 
     def source_pdf_for_both_inputs(y):
         nonlocal source_pdf, call_index
-        # render_prepared computes source then virtual-target PDF. Replace only
-        # the target with that render's real source PDF, preserving all pixels,
-        # frozen coefficients, adapter weights and the explicit virtual gain.
-        if call_index % 2 == 0:
+        # Samsung computes source, preliminary target, then final target PDF.
+        # Replace both targets with this render's real source PDF, preserving
+        # all pixels, frozen coefficients, adapter weights and total gain.
+        if call_index % 3 == 0:
             source_pdf = original_histogram(y)
         call_index += 1
         return source_pdf
@@ -106,8 +107,9 @@ def test_samsung_virtual_pdf_changes_curve_with_direct_gain_held_fixed(monkeypat
         patch.setattr(tone, "_soft_histogram", source_pdf_for_both_inputs)
         ablated = {ev: tone.render_prepared(prepared, render_ev=ev) for ev in (-1., 0., 1.)}
 
-    torch.testing.assert_close(full[0.], ablated[0.], atol=0, rtol=0)
-    for ev in (-1., 1.):
+    # Stock gain 2 with explicit EV -1 means total virtual gain one.
+    torch.testing.assert_close(full[-1.], ablated[-1.], atol=0, rtol=0)
+    for ev in (0., 1.):
         # Disabling the histogram-derived knee would erase this difference,
         # even though the ordinary gain/brightness response would still pass.
         assert (full[ev] - ablated[ev]).abs().max() > 1e-5
@@ -115,3 +117,36 @@ def test_samsung_virtual_pdf_changes_curve_with_direct_gain_held_fixed(monkeypat
     assert full[-1.].mean() < full[0.].mean() < full[1.].mean()
     assert (full[1.] >= full[0.] - 1e-5).float().mean() > .95
     assert (full[0.] >= full[-1.] - 1e-5).float().mean() > .95
+
+
+def test_samsung_stock_gain_conditions_curve_at_zero_explicit_intent():
+    samsung = make_tone("samsung", trainable=False)
+    apple = make_tone("apple", trainable=False)
+    prepared = samsung.prepare(fixture_rgb())
+    # With identical coefficients and zero adapters, Apple supplies the exact
+    # no-PDF-knee ablation while applying the same physical total render gain.
+    prepared["gain"] = torch.full_like(prepared["gain"], 2.)
+    full = samsung.render_prepared(prepared, render_ev=0.)
+    no_pdf_knee = apple.render_prepared(prepared, render_ev=0.)
+    assert (full - no_pdf_knee).abs().max() > 1e-5
+    prepared["gain"] = torch.ones_like(prepared["gain"])
+    torch.testing.assert_close(samsung.render_prepared(prepared), apple.render_prepared(prepared), atol=0, rtol=0)
+
+
+def test_samsung_final_pdf_tracks_effective_gain_including_learned_residual():
+    tone = make_tone("samsung")
+    prepared = tone.prepare(fixture_rgb())
+    prepared["gain"] = torch.full_like(prepared["gain"], 2.)
+    # Two parameterizations produce the same total gain sqrt(8). A curve built
+    # from the preliminary gain instead of the final one would distinguish them.
+    with torch.no_grad():
+        tone.conditioner[-1].bias[0] = torch.atanh(torch.tensor(.5))
+    residual_result = tone.render_prepared(prepared)
+    with torch.no_grad():
+        tone.conditioner[-1].bias[0] = 0.
+    reparameterized = dict(prepared, gain=prepared["gain"] * (2. ** .5))
+    gain_result = tone.render_prepared(reparameterized)
+    torch.testing.assert_close(residual_result, gain_result, atol=2e-6, rtol=2e-5)
+    gain_result.square().mean().backward()
+    gain_gradient = tone.conditioner[-1].bias.grad[0]
+    assert torch.isfinite(gain_gradient) and gain_gradient.abs() > 1e-7

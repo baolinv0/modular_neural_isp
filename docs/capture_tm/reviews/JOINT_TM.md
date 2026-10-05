@@ -6,7 +6,8 @@ This review did not modify production code.
 
 ## Verdict
 
-No blocking algorithm defect found in the reviewed TM or joint-gradient paths.
+No blocking algorithm defect found in the reviewed TM or joint-gradient paths,
+including the Samsung v2 virtual-gain correction reviewed before its study run.
 The implementation is suitable for the stated simulator factorial experiment,
 subject to the experiment interpretation below. This is parameter-efficient
 adaptation of a real pretrained ISP, not full-backbone training and not a
@@ -27,9 +28,12 @@ claim-by-claim reproduction of either patent.
 - HDR radiance is smoothly compressed before the original bounded GTM
   equation. The local gain uses a bounded odds mapping, avoiding the stock
   local multiplication followed by destructive clipping above one.
-- Samsung virtual gain affects a target PDF and a shoulder-knee term, as well
-  as the single direct rendering gain. This is a disclosed histogram-conditioned
-  neural adaptation, not the exact inverse-CDF patent construction.
+- Samsung v2 computes the preliminary target PDF using the stock GainNet gain
+  times explicit rendering intent. The conditioner predicts a residual once,
+  then a final target PDF uses the complete effective gain, including that
+  residual, to construct the shoulder-knee term. The same complete gain is
+  applied once to radiance. This is an acyclic histogram-conditioned neural
+  adaptation, not the exact inverse-CDF patent construction.
 - Frozen and trainable TM variants have exactly the same initial output.
   Freezing coefficients does not impose `no_grad` on the input path.
 - `prepare` executes no trainable adapters. An independent probe randomly
@@ -69,15 +73,45 @@ Independent two-scheme perturbation probe:
 | Maximum cached/direct output difference after perturbation | 0 | 0 |
 | Trainable parameters | 2,663 | 2,663 |
 
+## Samsung v2 scoped re-review
+
+**Resolved conceptual issue:** The first version constructed its target PDF
+from explicit user intent alone. At the default zero intent this left the
+PDF-derived curve inactive, even when the stock GainNet or learned residual
+brightened the image. Samsung's image-statistics-derived virtual-gain idea is
+better represented by the total estimated rendering gain. The v2 construction
+above resolves this mismatch without a recursive predictor or duplicated image
+gain.
+
+Code and tests were inspected after the builder completed the correction. The
+builder's dedicated TM suite reported **11 passed in 20.97 s**. The scoped
+review did not duplicate the concurrently running integration suite.
+
+- A PDF-only ablation keeps the same prepared image, gain, coefficient maps
+  and weights. At stock gain two and zero explicit intent, removing the PDF
+  term changes the output. At effective gain one, the outputs match exactly.
+- A residual-equivalence test compares stock gain two plus a learned half-EV
+  residual with stock gain `2 * sqrt(2)` and zero residual. Equal final gains
+  yield equal curves and outputs, detecting an incorrect preliminary-only PDF.
+  It also verifies a finite nonzero residual-gain gradient.
+- The builder's before/after Apple probe used nonzero randomized adapters and
+  reported bit-identical output, maximum absolute difference zero. Inspection
+  confirms Apple's conditioner inputs and gain arithmetic are unchanged.
+- `prepare` is unchanged. Only Samsung's renderer identity advances to v2;
+  Apple retains v1. Existing Apple results therefore remain applicable.
+
+This correction was accepted before Samsung model training or quality results
+were observed. The experiment owner reported interrupting only initial cache
+construction. The change addresses algorithm fidelity rather than selecting
+an implementation using observed Samsung test quality.
+
 ## Experiment interpretation
 
-The standard runner defaults to `render_ev=0`. In that configuration Samsung's
-explicit virtual gain is one, so its source and virtual-target PDFs coincide.
-The four groups still test capture/TM learning and their interaction, but cannot
-by themselves establish the value of a nonidentity virtual-gain curve. A
-controlled nonzero-intent probe, with direct gain held equal across a
-PDF-construction ablation, is needed to isolate that mechanism. This issue was
-communicated to the implementer and experiment owner.
+Samsung v2's virtual-gain curve can be active at zero explicit intent because
+its automatically estimated gain is generally nonunit. The focused tests prove
+that this dataflow changes the curve. The four AE/TM factorial groups do not
+isolate the PDF term's **quality benefit**: that conclusion still requires a
+separate, controlled PDF-only ablation with identical total gain and budgets.
 
 The fixed analytic target and simulator metrics are transparent research
 surrogates. They do not establish real-camera aesthetics, perceptual superiority,
