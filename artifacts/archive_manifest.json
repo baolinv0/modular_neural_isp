@@ -7,421 +7,421 @@
   "chunks": [
     {
       "index": 0,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-000.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-000.bin",
       "bytes": 600000,
       "blob_sha": "4a20283f8044bd2bf9d93b560317dc95341280cd"
     },
     {
       "index": 1,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-001.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-001.bin",
       "bytes": 600000,
       "blob_sha": "da3b803d03edc2bc04640d2a634e2ca09b53a1ff"
     },
     {
       "index": 2,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-002.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-002.bin",
       "bytes": 600000,
       "blob_sha": "32a4c14a1edcba6ec257848bf10b25abd789bc50"
     },
     {
       "index": 3,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-003.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-003.bin",
       "bytes": 600000,
       "blob_sha": "52d1a30b3fff4850c585732c91adbd3ff35fc252"
     },
     {
       "index": 4,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-004.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-004.bin",
       "bytes": 600000,
       "blob_sha": "931027002b86cb3c18a6780fcea643e1e9e48f12"
     },
     {
       "index": 5,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-005.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-005.bin",
       "bytes": 600000,
       "blob_sha": "238ba224fa21e563c88699dce0fafa5c6f766715"
     },
     {
       "index": 6,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-006.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-006.bin",
       "bytes": 600000,
       "blob_sha": "350ff69e636944418bf7486f208fd3abf79a75d4"
     },
     {
       "index": 7,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-007.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-007.bin",
       "bytes": 600000,
       "blob_sha": "46f814ce87cba25ff07cca77f683aa9e3c19f6f7"
     },
     {
       "index": 8,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-008.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-008.bin",
       "bytes": 600000,
       "blob_sha": "0e3ad23cff6b6542b661894bc6e9e7e09216f430"
     },
     {
       "index": 9,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-009.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-009.bin",
       "bytes": 600000,
       "blob_sha": "b2def0198703b5790dc411d8a269ab8499c3bb9c"
     },
     {
       "index": 10,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-010.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-010.bin",
       "bytes": 600000,
       "blob_sha": "b7970c21adbd91458d9a624ee2a91e0ee7a2be65"
     },
     {
       "index": 11,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-011.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-011.bin",
       "bytes": 600000,
       "blob_sha": "4df6131c45b63e1f55c94e8ee65f8fd2279b5845"
     },
     {
       "index": 12,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-012.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-012.bin",
       "bytes": 600000,
       "blob_sha": "67ab87cf688833c1812c11ee249e72d22849fc74"
     },
     {
       "index": 13,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-013.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-013.bin",
       "bytes": 600000,
       "blob_sha": "67c4e6871023ec0b22e42d1542a37d228081f484"
     },
     {
       "index": 14,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-014.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-014.bin",
       "bytes": 600000,
       "blob_sha": "f7eed8f7dad4f9a608f25fc318e88d91973114db"
     },
     {
       "index": 15,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-015.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-015.bin",
       "bytes": 600000,
       "blob_sha": "15dd226c95a13b2fce85e6d15a6c2be3e16c1748"
     },
     {
       "index": 16,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-016.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-016.bin",
       "bytes": 600000,
       "blob_sha": "c17341d69bf21e7de88c4813ff5e5eba9ee43b42"
     },
     {
       "index": 17,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-017.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-017.bin",
       "bytes": 600000,
       "blob_sha": "b23a386f8be3b0f87475d8d6932e9637d10fd664"
     },
     {
       "index": 18,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-018.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-018.bin",
       "bytes": 600000,
       "blob_sha": "705c07f2d4ad5dc9ec99b4355ca8f3b035213263"
     },
     {
       "index": 19,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-019.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-019.bin",
       "bytes": 600000,
       "blob_sha": "a44971acdbcfaf9792836786252fc1968035d313"
     },
     {
       "index": 20,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-020.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-020.bin",
       "bytes": 600000,
       "blob_sha": "e50029970e98f153608990fd01eee3b2ba838782"
     },
     {
       "index": 21,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-021.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-021.bin",
       "bytes": 600000,
       "blob_sha": "98fde7913fe445d4cbd6984e9316c6155dceeea8"
     },
     {
       "index": 22,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-022.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-022.bin",
       "bytes": 600000,
       "blob_sha": "afc7e327adecd77496620c1524611b0d63c476df"
     },
     {
       "index": 23,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-023.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-023.bin",
       "bytes": 600000,
       "blob_sha": "79bfb44a37c27e13ec3640118e3455223a02b9d3"
     },
     {
       "index": 24,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-024.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-024.bin",
       "bytes": 600000,
       "blob_sha": "30e0e7036ab47cf52b7d7edc7e53536277ec501b"
     },
     {
       "index": 25,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-025.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-025.bin",
       "bytes": 600000,
       "blob_sha": "d21c69b42b1b588f9b8ca8c1d05c7bebe0621378"
     },
     {
       "index": 26,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-026.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-026.bin",
       "bytes": 600000,
       "blob_sha": "1d45b25b860782066c8082fe183cf868692f000f"
     },
     {
       "index": 27,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-027.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-027.bin",
       "bytes": 600000,
       "blob_sha": "889b78dda25caea8b98d8cd0011235cb535fb886"
     },
     {
       "index": 28,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-028.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-028.bin",
       "bytes": 600000,
       "blob_sha": "255ede9487897233aff3eee21e98bf607760b528"
     },
     {
       "index": 29,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-029.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-029.bin",
       "bytes": 600000,
       "blob_sha": "ab1cec156297905eb7dd837d36967e67905da70f"
     },
     {
       "index": 30,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-030.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-030.bin",
       "bytes": 600000,
       "blob_sha": "364ccc5879912924bf78fd0e9aaca9f7184605fb"
     },
     {
       "index": 31,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-031.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-031.bin",
       "bytes": 600000,
       "blob_sha": "e8951729cd63a625d4eb5ff4a8ef8715258b2b10"
     },
     {
       "index": 32,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-032.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-032.bin",
       "bytes": 600000,
       "blob_sha": "f85411040e0c835cf32a34bbc40ad72b0ec97025"
     },
     {
       "index": 33,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-033.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-033.bin",
       "bytes": 600000,
       "blob_sha": "49e362317941f461f4c8f491202b82b51666b9ea"
     },
     {
       "index": 34,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-034.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-034.bin",
       "bytes": 600000,
       "blob_sha": "e6091f6c12ddd7aecc115bb744e3a804e04241fd"
     },
     {
       "index": 35,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-035.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-035.bin",
       "bytes": 600000,
       "blob_sha": "2803647d8a9468203bf8d4137a19b0c9a0832e25"
     },
     {
       "index": 36,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-036.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-036.bin",
       "bytes": 600000,
       "blob_sha": "426dd9c701e62628560bae6b5a50032b5b44b5bc"
     },
     {
       "index": 37,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-037.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-037.bin",
       "bytes": 600000,
       "blob_sha": "f9c29dc4b02ffbe18c870e8368a2407b5087f81f"
     },
     {
       "index": 38,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-038.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-038.bin",
       "bytes": 600000,
       "blob_sha": "c1cefc800484e9e3a0c69f07d45e58e31649d923"
     },
     {
       "index": 39,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-039.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-039.bin",
       "bytes": 600000,
       "blob_sha": "ae798319ca447e64e85599e587fdd5bb5ecc7b73"
     },
     {
       "index": 40,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-040.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-040.bin",
       "bytes": 600000,
       "blob_sha": "a10b0fa40735f7c7351a52f5859edcf4e76b896a"
     },
     {
       "index": 41,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-041.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-041.bin",
       "bytes": 600000,
       "blob_sha": "0fd7c7924f8b81cbc757b017cc8837662cfed444"
     },
     {
       "index": 42,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-042.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-042.bin",
       "bytes": 600000,
       "blob_sha": "438c2948be3432634a5b4b12e14e83c5afb5cc72"
     },
     {
       "index": 43,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-043.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-043.bin",
       "bytes": 600000,
       "blob_sha": "3d3073c786f885aeeb87ed7d22fda93634ef747d"
     },
     {
       "index": 44,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-044.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-044.bin",
       "bytes": 600000,
       "blob_sha": "d10a0eb425660d869de1546a8c7c5a545c6a01cd"
     },
     {
       "index": 45,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-045.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-045.bin",
       "bytes": 600000,
       "blob_sha": "ac0070091b2dcfc1b37084e09fbe32e9721a49b9"
     },
     {
       "index": 46,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-046.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-046.bin",
       "bytes": 600000,
       "blob_sha": "b35364964b868cbf01b19d84a025c7acfc78213d"
     },
     {
       "index": 47,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-047.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-047.bin",
       "bytes": 600000,
       "blob_sha": "064c0ab56bb9740fc8d21cffb1e543fc3ae0e9e7"
     },
     {
       "index": 48,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-048.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-048.bin",
       "bytes": 600000,
       "blob_sha": "6fc0a4c995a4e85d4a9b7b112e81bbef8d7569ca"
     },
     {
       "index": 49,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-049.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-049.bin",
       "bytes": 600000,
       "blob_sha": "a47b2be372218a1355c8c486374d54ce201e3b86"
     },
     {
       "index": 50,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-050.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-050.bin",
       "bytes": 600000,
       "blob_sha": "92cd9c5529e4c02aa8434310333dba4eb50b910a"
     },
     {
       "index": 51,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-051.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-051.bin",
       "bytes": 600000,
       "blob_sha": "5814ecc105a31fa20c3a3afd455377d1396c715e"
     },
     {
       "index": 52,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-052.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-052.bin",
       "bytes": 600000,
       "blob_sha": "3a12e88fb12293b629db617983cef29de70d7912"
     },
     {
       "index": 53,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-053.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-053.bin",
       "bytes": 600000,
       "blob_sha": "e6c8f1895d168395237ff9a48d7fd8b236b3c66c"
     },
     {
       "index": 54,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-054.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-054.bin",
       "bytes": 600000,
       "blob_sha": "2883aa8646e8d80af440b74e1900d1d5eb64c364"
     },
     {
       "index": 55,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-055.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-055.bin",
       "bytes": 600000,
       "blob_sha": "5be23df2a06947304955a3eb59e056635133fbd1"
     },
     {
       "index": 56,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-056.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-056.bin",
       "bytes": 600000,
       "blob_sha": "fd6760ea38c4a57c72b9818ffd6d6970a635ac9b"
     },
     {
       "index": 57,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-057.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-057.bin",
       "bytes": 600000,
       "blob_sha": "562b0d1b07907727735c33fd2e630b9a1ca7ecc7"
     },
     {
       "index": 58,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-058.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-058.bin",
       "bytes": 600000,
       "blob_sha": "d86d45229a4cd9b36a6956fe4432bfcb9158a67e"
     },
     {
       "index": 59,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-059.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-059.bin",
       "bytes": 600000,
       "blob_sha": "79d7a51ea3970e9ef398338f0b229945411be10e"
     },
     {
       "index": 60,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-060.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-060.bin",
       "bytes": 600000,
       "blob_sha": "d3c2603ed082f1f92be21189c67f45da31097882"
     },
     {
       "index": 61,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-061.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-061.bin",
       "bytes": 600000,
       "blob_sha": "f3a627317a47a613c84cd258063cdbdc63e3745c"
     },
     {
       "index": 62,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-062.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-062.bin",
       "bytes": 600000,
       "blob_sha": "29f4712c34aa7d60dbda28c8ff0c81080ed0165b"
     },
     {
       "index": 63,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-063.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-063.bin",
       "bytes": 600000,
       "blob_sha": "1a32bd25bedc8d368df14e38aa48aafa66437485"
     },
     {
       "index": 64,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-064.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-064.bin",
       "bytes": 600000,
       "blob_sha": "4993be54b06ea4441b19079d89cec07a60edab7b"
     },
     {
       "index": 65,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-065.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-065.bin",
       "bytes": 600000,
       "blob_sha": "e207ff53180f23681f3eae445fbb2f40a747a0c5"
     },
     {
       "index": 66,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-066.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-066.bin",
       "bytes": 600000,
       "blob_sha": "5b1dd311dc5918dd54fa6654a1e97f992b8eb363"
     },
     {
       "index": 67,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-067.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-067.bin",
       "bytes": 600000,
       "blob_sha": "21258ddef865213135632aa02b867af7adccab39"
     },
     {
       "index": 68,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-068.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-068.bin",
       "bytes": 600000,
       "blob_sha": "86402d6017095f5e4e9f5fd7672a9b1c61e4af6f"
     },
     {
       "index": 69,
-      "path": "ae_tm_single_hdr_experiments_20261005.part-069.bin",
+      "path": "ae_tm_single_hdr_experiments_20261005.zip.part-069.bin",
       "bytes": 359233,
       "blob_sha": "cb4c1d6695de239318e34396137eaa52d48a8f94"
     }

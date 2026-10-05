@@ -1,5 +1,13 @@
 # 采集曝光与成片 TM：单帧与 HDR 联合算法
 
+## 数据设计与复现入口
+
+- [完整数据合成方案](../docs/capture_tm/DATA_SYNTHESIS_DESIGN.md)：共享物理模拟、两条任务链、素材分级、GT/时序/增益合同和待补研究验证。
+- [逐步复现手册](../docs/capture_tm/REPRODUCE_DATA.md)：恢复旧 40 场景/24 模型、从零生成 Bayer 数据、训练推理、导入真实线性 HDR 与故障排查。
+- [本次复现核验记录](../docs/capture_tm/REPRODUCE_DATA_VALIDATION.md)：实际执行范围与结果；与历史 314 项全回归记录分开。
+
+已上传的 [artifacts](../artifacts/README.md) 是旧 RGB 模拟实验。新的 Bayer 采集包需按手册生成；不能把旧模型或旧指标换名为 Bayer 结果。
+
 ## Bayer 物理数据 pipeline
 
 新增显式线性 HDR 素材导入、原生 Bayer DN 生成、rolling shutter/readout 调度、可迁移数据包、RAW 重算验证及八组训练直接接入。完整命令、GT位置、数据字段与设备标定边界见 [DATA_PIPELINE.md](../docs/capture_tm/DATA_PIPELINE.md)。

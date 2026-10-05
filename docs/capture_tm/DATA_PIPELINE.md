@@ -1,5 +1,7 @@
 # Apple 单帧 / Samsung HDR：物理数据合成与训练
 
+本页为实现接口说明；完整方案与研究准入条件见 [DATA_SYNTHESIS_DESIGN.md](DATA_SYNTHESIS_DESIGN.md)，安装、旧产物恢复、新数据生成及模型推理见 [REPRODUCE_DATA.md](REPRODUCE_DATA.md)。
+
 本分支新增完整的数据入口：**显式线性素材导入 → Bayer 物理采集 → 可迁移数据包 → 独立验证 → 既有八组 AE/TM 训练 → checkpoint 推理**。
 
 所有默认数值是工程假设。数据域为相对传感器辐射，不能据此声称已标定 Apple/Samsung 手机。两项专利用于指导采集与渲染分工，网络和合成数据方法属于本工程的设计。
