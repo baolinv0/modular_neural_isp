@@ -24,7 +24,22 @@ Samsung `.001` 平坦输入（identity backend）与 `x*2, capture_bias_ev=1` �
 
 ## 完整训练记录
 
-24-scene 64px CPU复验正在执行：14 train / 4 val / 6 test，12候选，3噪声重复，20 epochs，真实同一style-0；完成后追加逐方法结果和容量匹配消融。该结果仍为合成数据的软件验证，不可推广为真实手机画质收益。
+两条分支的24-scene 64px CPU复验已完成：14 train / 4 val / 6 test，12候选，3噪声重复，20 epochs，seed=0，真实同一style-0。full/image-only均为53,881参数；除use_auxiliary外，model kwargs、state shape、动作、数据、renderer、teacher协议、随机种子与训练预算相同。四次训练均按val选择epoch1，未按test结果重选。
+
+| TM | 方法 | Composite cost | Regret | Display MSE | 新模拟RAW饱和 | 曝光+读出 ms |
+|---|---|---:|---:|---:|---:|---:|
+| Apple | 固定曝光 | 0.00220747 | 0.00046055 | 0.00013055 | 0.0100143 | 10.333 |
+| Apple | full / image-only | 0.00175673 | 0.00000981 | 0.00018416 | 0.0018989 | 6.167 |
+| Apple | 当前采样oracle | 0.00174692 | 0 | 0.00015911 | 0.0046161 | 7.556 |
+| Samsung | 固定曝光 | 0.00157288 | 0.00001167 | 0.00008897 | 0.0100143 | 10.333 |
+| Samsung | full / image-only | 0.00171569 | 0.00015449 | 0.00017865 | 0.0018989 | 6.167 |
+| Samsung | 当前采样oracle | 0.00156121 | 0 | 0.00010181 | 0.0086760 | 9.639 |
+
+**这轮没有外部metadata收益证据。** 两条分支的full与image-only均在全部6个test场景选择action0（1/240 s、ga=gd=1），逐场景动作和全部汇总指标完全相同。Apple的复合成本低于固定曝光，但display MSE更高；Samsung的学习策略在复合成本及MSE上均未超过固定曝光。因此不能将这些数字概括为整体画质提升，更不能宣称真机改进。
+
+两模式observations-only CLI infer均通过：NPZ仅含previews `[3,3,64,64]` 和实际state `[3,3]`，无teacher/candidate输入；observation7→request8→effective9，delay1。曝光+readout为0.00616667 s，在0.04 s剩余预算内，并满足0.025 s midpoint offset的时序检查。Root再次严格载入四个checkpoint、统计实际parameters并核对test指标、协议与budget结果。
+
+完整指标、容量与逐场景检查见 [validation_results.json](validation_results.json)。这些结果只验证合成场景的软件流程与评估行为，不可推广为真实手机画质收益。当前teacher确实对两种TM给出不同最优采集分布，但当前策略尚未稳定学出这种差异；真实数据、较丰富采集状态/光照/运动覆盖及预先确定的多seed实验是后续验证条件。
 
 ## 必须保留的证据边界
 

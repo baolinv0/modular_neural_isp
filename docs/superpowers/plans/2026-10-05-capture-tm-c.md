@@ -33,4 +33,4 @@
 - [x] Root integration: `objective.py`, `experiment.py`, `cli.py`, configuration and integration tests; build labels, train, checkpoint reload, evaluate, infer, direct render and comparison report. No optimizer resume claim.
 - [x] Run complete new package tests and upstream collection; record dependency or pre-existing test limitations.
 - [x] Independent AE/TM/ISP review, reproduce reported defects, fix, rerun affected tests and full suite.
-- [ ] Commit and publish an isolated GitHub branch and draft PR with source mapping, runnable commands and verification limits.
+- [x] Commit and publish an isolated GitHub branch and draft PR with source mapping, runnable commands and verification limits: https://github.com/baolinv0/modular_neural_isp/pull/15.
