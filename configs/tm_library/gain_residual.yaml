@@ -1,0 +1,31 @@
+# Paths resolve relative to this YAML file. CLI flags can override fixture/output paths.
+model:
+  algorithm: gain_residual
+  semantic_mode: none
+  width: 8
+  analysis_size: 16
+data:
+  train_manifest: ../../data/tm-library-synthetic/train.jsonl
+  val_manifest: ../../data/tm-library-synthetic/val.jsonl
+  image_size: 32
+  augment: true
+training:
+  epochs: 2
+  batch_size: 1
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  seed: 7
+  device: cpu
+  num_workers: 0
+  gradient_clip: 1.0
+  scheduler_step: 1
+  scheduler_gamma: 0.95
+  cpu_threads: 1
+loss:
+  rgb: 1.0
+  log_luma: 0.1
+  gradient: 0.1
+  region: 0.0
+  semantic: 0.1
+upstream_checkpoint: ../../photofinishing/models/photofinishing_s24-style-0.pth
+output_dir: ../../runs/tm_library/gain_residual
