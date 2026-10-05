@@ -37,3 +37,9 @@ Meaningful tests cover causal timing, legal physical controls, exposure/radiance
 
 - Initial inspection: existing branch clean at 5a09417; old frozen renderer is not a joint training implementation.
 - Parallel implementation started with disjoint module/test ownership. Root retains integration and git writes.
+- Completed both algorithms, deployed-observation APIs, parameter-efficient TM training, temporal AE, physical HDR capture/fusion, and the factorial runner before final experiments.
+- Independent AE/TM/ISP reviews completed. Samsung target-PDF handling was corrected to include actual GainNet/residual virtual gain before its first training run; Apple computations were preserved.
+- Full regression on final algorithm code: 195 passed in 149.32 seconds.
+- Completed all eight groups with training seeds 0/1/2, 10 warmup and 10 main epochs, 40 synthetic 32x32 scenes (24/8/8), and two noise repeats. No real-camera validation.
+- Verified selected trained Apple and Samsung checkpoints through actual capture readback inference against cached evaluation within 1e-5 float32 tolerance.
+- Results and independent result review are in `docs/capture_tm/JOINT_RESULTS.md`, `JOINT_RESULTS_REVIEW.md`, and `joint_results.json`. Apple AE collapse/saturation and Samsung joint policy concentration are reported; neither scheme establishes joint superiority over TM-only.
