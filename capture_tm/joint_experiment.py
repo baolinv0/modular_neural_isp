@@ -179,6 +179,62 @@ def build_capture_cache(scenes, sensor, plans, scheme, output, *, noise_seeds, w
     return info
 
 
+def build_archive_cache(archive, scheme, output, *, weights=None,
+                        candidate_chunk_size=4, render_ev=0.):
+    """Prepare frozen ISP coefficients directly from archived measurements.
+
+    The archive's images have already passed through fixed capture composition
+    and WB/CCM. Reusing them preserves its exact noise, fusion, and fixed target
+    across every training seed and factorial group. Native RAW remains in the
+    acquisition archive rather than being duplicated in this training cache.
+    ``archive`` is validated loader output with absolute record paths.
+    """
+    from .learned_tone import ConditionalToneMapper
+
+    if candidate_chunk_size < 1:
+        raise ValueError('candidate_chunk_size must be positive')
+    source = archive['schemes'][scheme]
+    output = Path(output)
+    output.mkdir(parents=True, exist_ok=True)
+    tm = ConditionalToneMapper(scheme, weights=weights, trainable=False).eval()
+    metadata = []
+    started = time.perf_counter()
+    with torch.no_grad():
+        for index, row in enumerate(source['records']):
+            record = _load(row)
+            if float(record['render_ev']) != float(render_ev):
+                raise ValueError('archive record target intent does not match requested render_ev')
+            images = record['images'].flatten(0, 1)
+            reliability = record['reliability'].flatten(0, 1)
+            capture_ev = record['capture_ev'].flatten()
+            parts = [tm.prepare(images[start:start + candidate_chunk_size],
+                                capture_ev=capture_ev[start:start + candidate_chunk_size],
+                                reliability=reliability[start:start + candidate_chunk_size])
+                     for start in range(0, len(images), candidate_chunk_size)]
+            prepared = {key: torch.cat([part[key].detach().cpu() for part in parts])
+                        for key in parts[0]}
+            saved = {key: record[key] for key in (
+                'scene_id', 'source_id', 'split', 'source_kind', 'provenance',
+                'previews', 'state', 'preview_metadata', 'rule_index', 'target',
+                'subject_mask', 'missing', 'radiance_mse', 'num_plans',
+                'noise_seeds', 'render_ev')}
+            saved['prepared'] = prepared
+            path = output / f'scene_{index:05d}.pt'
+            torch.save(saved, path)
+            metadata.append({**row, 'path': str(path), 'rule_index': record['rule_index']})
+            print(f'{scheme} archive cache {index + 1}/{len(source["records"])}: '
+                  f'{record["scene_id"]} ({record["split"]}), {record["num_plans"]} plans '
+                  f'x {len(record["noise_seeds"])} archived noise repeats', flush=True)
+    info = {'records': metadata, 'seconds': time.perf_counter() - started,
+            'prepare_threads': torch.get_num_threads(), 'plans': source['plans'],
+            'target': 'unchanged fixed acquisition-archive target',
+            'prepared_cache': 'detached fixed ISP coefficient predictions from archived composed images',
+            'capture_source': 'acquisition archive; no capture or fusion is repeated',
+            'shared_across_training_seeds_and_groups': True}
+    _json(output / 'cache.json', info)
+    return info
+
+
 def _load(record):
     return torch.load(record['path'], map_location='cpu', weights_only=True)
 
@@ -332,7 +388,8 @@ def _train_group(group, scheme, initial, metadata, features, output, *, epochs, 
                 'optimizer_steps': dict(steps), 'learned_ae': learned_ae, 'learned_tm': learned_tm,
                 'selected_on': 'validation cost; test scenes excluded',
                 'plan_features': features.clone(), 'sensor': initial['sensor'], 'plans': initial['plans'],
-                'tm_weights': str(weights) if weights else None, 'render_ev': initial['render_ev']}
+                'tm_weights': str(weights) if weights else None, 'render_ev': initial['render_ev'],
+                'acquisition': initial.get('acquisition'), 'manifest_kind': initial.get('manifest_kind')}
 
     torch.save(checkpoint(0), output / 'selected.pt')
     for epoch in range(epochs if optimizer is not None else 0):
@@ -394,7 +451,11 @@ def _train_group(group, scheme, initial, metadata, features, output, *, epochs, 
 def run_factorial(manifest, output, *, scheme='both', epochs=10, warmup=5, seeds=(0,),
                   noise_seeds=(0, 1), threads=2, prepare_threads=None, candidate_chunk_size=4, ae_lr=1e-3,
                   tm_lr=3e-4, weights=None, render_ev=0.):
-    """Execute the four controlled groups for each requested algorithm."""
+    """Execute four controlled groups from v1 scenes or a v2 RAW archive.
+
+    Archive noise repeats, target intent, and physical plans are fixed inputs;
+    the requested noise seeds and render EV must match their recorded protocol.
+    """
     if scheme not in ('apple', 'samsung', 'both'):
         raise ValueError('scheme must be apple, samsung or both')
     if epochs < 1 or warmup < 0 or threads < 1 or candidate_chunk_size < 1 or min(ae_lr, tm_lr) <= 0:
@@ -404,35 +465,66 @@ def run_factorial(manifest, output, *, scheme='both', epochs=10, warmup=5, seeds
         raise ValueError('prepare_threads must be a positive integer or None')
     if not seeds or not noise_seeds or len(set(seeds)) != len(seeds) or len(set(noise_seeds)) != len(noise_seeds):
         raise ValueError('training and noise seeds must be nonempty and unique')
-    sensor, scenes = load_manifest(manifest)
-    if set(scene.split for scene in scenes) != {'train', 'val', 'test'}:
-        raise ValueError('separate train, val and test scene splits are required')
-    from .capture_plan import build_plan_bank, plan_features
+    names = ('apple', 'samsung') if scheme == 'both' else (scheme,)
+    manifest_path = Path(manifest).expanduser().resolve()
+    payload = json.loads(manifest_path.read_text(encoding='utf-8'))
+    archive = None
+    if payload.get('kind') == 'capture_tm_acquisition_dataset':
+        for name in names:
+            if name not in payload.get('schemes', {}):
+                raise ValueError(f'acquisition archive does not contain requested scheme {name}')
+        if payload.get('render_ev') != render_ev:
+            raise ValueError('archive target intent does not match requested render_ev')
+        if payload.get('noise_seeds') != list(noise_seeds):
+            raise ValueError('requested noise_seeds must match archived base noise seeds')
+        from .pipeline import load_acquisition_manifest
+        from .types import SensorProfile
+        archive = load_acquisition_manifest(manifest_path)
+        sensor = SensorProfile.from_dict(archive['sensor'])
+        for name in names:
+            if set(row['split'] for row in archive['schemes'][name]['records']) != {'train', 'val', 'test'}:
+                raise ValueError(f'separate train, val and test scene splits are required for {name}')
+        scene_rows = archive['schemes'][names[0]]['records']
+    else:
+        sensor, scenes = load_manifest(manifest_path)
+        if set(scene.split for scene in scenes) != {'train', 'val', 'test'}:
+            raise ValueError('separate train, val and test scene splits are required')
+        scene_rows = [{'split': scene.split, 'source_kind': scene.source_kind} for scene in scenes]
+    from .capture_plan import CapturePlan, build_plan_bank, plan_features
     from .learned_policy import TemporalExposurePolicy
     from .learned_tone import ConditionalToneMapper
+    from .types import CaptureAction
 
     torch.set_num_threads(threads)
     output = Path(output).expanduser().resolve()
     output.mkdir(parents=True, exist_ok=True)
     if (output / 'results.json').exists():
         raise FileExistsError('results already exist; use a new output directory')
-    report = {'version': 1, 'manifest': str(Path(manifest).resolve()), 'schemes': {},
+    report = {'version': 1, 'manifest': str(manifest_path), 'schemes': {},
+              'manifest_kind': payload.get('kind'),
+              'acquisition': None if archive is None else archive['acquisition'],
               'config': {'epochs': epochs, 'warmup': warmup, 'seeds': list(seeds),
                          'noise_seeds': list(noise_seeds), 'threads': threads, 'prepare_threads': prepare_threads,
                          'candidate_chunk_size': candidate_chunk_size, 'ae_lr': ae_lr, 'tm_lr': tm_lr,
                          'render_ev': render_ev, 'weights': str(weights) if weights else 'shipped style 0'},
-              'scene_counts': {split: sum(scene.split == split for scene in scenes) for split in ('train', 'val', 'test')},
-              'source_kinds': dict(Counter(scene.source_kind for scene in scenes)),
+              'scene_counts': {split: sum(row['split'] == split for row in scene_rows) for split in ('train', 'val', 'test')},
+              'source_kinds': dict(Counter(row['source_kind'] for row in scene_rows)),
               'evidence': 'simulation protocol experiment; real sensor calibration and real captures remain required'}
-    for name in (('apple', 'samsung') if scheme == 'both' else (scheme,)):
+    for name in names:
         prefix = 'A' if name == 'apple' else 'S'
-        plans = build_plan_bank(name, sensor)
+        plans = (build_plan_bank(name, sensor) if archive is None else [
+            CapturePlan(tuple(CaptureAction(**action) for action in value['actions']),
+                        tuple(value['centers_s'])) for value in archive['schemes'][name]['plans']])
         features = plan_features(plans, sensor)
         torch.set_num_threads(prepare_threads)
         try:
-            cache = build_capture_cache(scenes, sensor, plans, name, output / name / 'cache',
-                                        noise_seeds=noise_seeds, weights=weights,
-                                        candidate_chunk_size=candidate_chunk_size, render_ev=render_ev)
+            if archive is None:
+                cache = build_capture_cache(scenes, sensor, plans, name, output / name / 'cache',
+                                            noise_seeds=noise_seeds, weights=weights,
+                                            candidate_chunk_size=candidate_chunk_size, render_ev=render_ev)
+            else:
+                cache = build_archive_cache(archive, name, output / name / 'cache', weights=weights,
+                                            candidate_chunk_size=candidate_chunk_size, render_ev=render_ev)
         finally:
             torch.set_num_threads(threads)
         records = cache['records']
@@ -446,8 +538,10 @@ def run_factorial(manifest, output, *, scheme='both', epochs=10, warmup=5, seeds
                               [r for r in records if r['split'] == 'val'], features,
                               epochs=warmup, lr=ae_lr, seed=int(seed), chunk_size=candidate_chunk_size)
             initial = {'policy_kwargs': kwargs, 'policy_state': _state(policy), 'tm_state': _state(tm),
-                       'warmstart': warm, 'sensor': sensor.to_dict(), 'plans': [_plan_dict(p) for p in plans],
-                       'render_ev': render_ev}
+                       'warmstart': warm, 'sensor': sensor.to_dict() if archive is None else archive['sensor'],
+                       'plans': cache['plans'],
+                       'render_ev': render_ev, 'manifest_kind': payload.get('kind'),
+                       'acquisition': None if archive is None else archive['acquisition']}
             seed_dir = output / name / f'seed_{seed}'
             seed_dir.mkdir(parents=True, exist_ok=True)
             torch.save(initial, seed_dir / 'initial.pt')

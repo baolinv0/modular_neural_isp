@@ -1,5 +1,20 @@
 # 采集曝光与成片 TM：单帧与 HDR 联合算法
 
+## Bayer 物理数据 pipeline
+
+新增显式线性 HDR 素材导入、原生 Bayer DN 生成、rolling shutter/readout 调度、可迁移数据包、RAW 重算验证及八组训练直接接入。完整命令、GT位置、数据字段与设备标定边界见 [DATA_PIPELINE.md](../docs/capture_tm/DATA_PIPELINE.md)。
+
+```bash
+python -m capture_tm.pipeline_cli demo --output runs/capture_tm/raw-demo \
+  --scenes 12 --size 16 --scheme both --noise-seeds 0 --seed 2026 --threads 1
+python -m capture_tm.pipeline_cli validate \
+  --manifest runs/capture_tm/raw-demo/acquisition/manifest.json
+python -m capture_tm.joint_cli \
+  --manifest runs/capture_tm/raw-demo/acquisition/manifest.json \
+  --output runs/capture_tm/raw-study --scheme both --epochs 1 --warmup 1 \
+  --seeds 0 --noise-seeds 0 --threads 1 --prepare-threads 1
+```
+
 ## 新版：两条完整算法与八组实验
 
 新增 Apple 启发的单帧 AE＋TM、Samsung 启发的三帧 HDR AE＋TM。完整算法说明见 [JOINT_ALGORITHMS.md](../docs/capture_tm/JOINT_ALGORITHMS.md)。两个方案分别运行场景自适应规则/学习 AE × 冻结/学习 TM 的四组实验。
