@@ -2,6 +2,9 @@
 
 ## 数据设计与复现入口
 
+- [S24 数据合成与完整实验计划](../docs/capture_tm/S24_EXPERIMENT_PLAN.md)：S24 输入域、目标与源裁切、两方案八组、训练/评测和待补代码。
+- [S24 工程实施计划](../docs/superpowers/plans/2026-10-05-s24-capture-tm.md)：拟新增接口、任务依赖和验收测试，尚未实现。
+- [S24 计划前的管线核验](../docs/capture_tm/S24_PIPELINE_VALIDATION.md)：本轮 111 项专项和新 12 场景 RAW 重算；不是 S24 数据训练结果。
 - [完整数据合成方案](../docs/capture_tm/DATA_SYNTHESIS_DESIGN.md)：共享物理模拟、两条任务链、素材分级、GT/时序/增益合同和待补研究验证。
 - [逐步复现手册](../docs/capture_tm/REPRODUCE_DATA.md)：恢复旧 40 场景/24 模型、从零生成 Bayer 数据、训练推理、导入真实线性 HDR 与故障排查。
 - [本次复现核验记录](../docs/capture_tm/REPRODUCE_DATA_VALIDATION.md)：实际执行范围与结果；与历史 314 项全回归记录分开。
