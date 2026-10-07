@@ -19,7 +19,7 @@
 仓库：`baolinv0/modular_neural_isp`。
 原分支：`feature/capture-tm-c-20261005`。
 已读取的提交：`49e158ac663498a622107dd2f306f38d8f1a47a9`。
-协作分支：`research/ae-tm-loop-20261007`。工作流随分支版本管理；GPU端按RUNBOOK拉取分支，不再手工解压ZIP或应用旧patch。
+长期集成分支：`feature/capture-tm-c-20261005`。研究计划、代码、任务与小型证据统一在该分支版本管理；需要并行实现时才开临时分支/worktree。GPU端按RUNBOOK拉取本分支，不再手工解压ZIP或应用旧patch。
 
 ## 当前事实
 
