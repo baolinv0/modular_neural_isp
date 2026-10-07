@@ -1,0 +1,18 @@
+{
+  "id": "R0_preflight",
+  "timeout_seconds": 120,
+  "purpose": "Read-only source/runtime/train-val pairing audit; no training.",
+  "steps": [
+    {
+      "name": "preflight",
+      "argv": [
+        "{python}",
+        "research/ae_tm/tools/preflight.py",
+        "--repo-root",
+        "{repo}",
+        "--output",
+        "{run_dir}/preflight.json"
+      ]
+    }
+  ]
+}
