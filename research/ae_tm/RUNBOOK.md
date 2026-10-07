@@ -8,7 +8,7 @@ GPU coding-agent：读取任务→编辑/测试/运行→报告/提交。
 Python程序：实际训练、确定性评价和运行记录。
 GitHub：代码、小型证据、当前状态，不承载原始数据/权重。
 
-本对话没有GPU访问，GitHub提交也不会自动唤醒ChatGPT。每轮由用户贴出分支/提交/报告入口后触发下一次读取。当前以研究分支中的文件为准；ZIP/patch是此前的离线交付，拉取本分支后不再重复应用。
+本对话没有GPU访问，GitHub提交也不会自动唤醒ChatGPT。每轮由用户贴出分支/提交/报告入口后触发下一次读取。当前以课题集成分支中的文件为准；ZIP/patch是此前的离线交付，拉取本分支后不再重复应用。
 
 ## 2. GPU端执行器
 
@@ -31,30 +31,30 @@ https://qwenlm.github.io/qwen-code-docs/en/users/configuration/model-providers/
 
 先验证小任务：读取一段文件→编辑测试文件→运行命令→读取退出码→汇报失败。只会生成代码但不能真实调用工具的模型，不能独立承担执行角色。不要为了挑选最强模型延误首轮。
 
-## 3. 拉取研究分支（无需再应用补丁）
+## 3. 拉取课题集成分支（无需再应用补丁）
 
-仓库：`baolinv0/modular_neural_isp`。研究分支：`research/ae-tm-loop-20261007`。
-源代码基线仍为`49e158ac663498a622107dd2f306f38d8f1a47a9`；工作流以研究分支当前提交为准。
+仓库：`baolinv0/modular_neural_isp`。课题长期集成分支：`feature/capture-tm-c-20261005`。
+源代码基线仍为`49e158ac663498a622107dd2f306f38d8f1a47a9`；工作流与算法代码均以该集成分支当前提交为准。
 
 已有本地仓库时，在仓库根目录执行。若`git status --short`非空，先停下保留并处理自己的修改；不要reset、强制切分支或自动stash。
 
 ```bash
 git status --short
-git fetch origin research/ae-tm-loop-20261007
+git fetch origin feature/capture-tm-c-20261005
 # 已有同名本地分支时只切换；没有时创建跟踪分支。
-if git show-ref --verify --quiet refs/heads/research/ae-tm-loop-20261007; then
-  git switch research/ae-tm-loop-20261007
+if git show-ref --verify --quiet refs/heads/feature/capture-tm-c-20261005; then
+  git switch feature/capture-tm-c-20261005
 else
-  git switch --track -c research/ae-tm-loop-20261007 origin/research/ae-tm-loop-20261007
+  git switch --track -c feature/capture-tm-c-20261005 origin/feature/capture-tm-c-20261005
 fi
-git pull --ff-only origin research/ae-tm-loop-20261007
+git pull --ff-only origin feature/capture-tm-c-20261005
 python -m unittest discover -s research/ae_tm/tests -v
 ```
 
 尚未克隆时，可在没有同名目录的位置执行：
 
 ```bash
-git clone --branch research/ae-tm-loop-20261007 --single-branch   https://github.com/baolinv0/modular_neural_isp.git
+git clone --branch feature/capture-tm-c-20261005 --single-branch   https://github.com/baolinv0/modular_neural_isp.git
 cd modular_neural_isp
 python -m unittest discover -s research/ae_tm/tests -v
 ```
@@ -105,7 +105,7 @@ python research/ae_tm/tools/bridge.py run research/ae_tm/experiments/R0_legacy_s
 git status --short
 git add research/ae_tm/reports/R0/attempt-001 research/ae_tm/START_HERE.md
 git commit -m "research: report R0 environment and S24 readiness"
-git push -u origin research/ae-tm-loop-20261007
+git push -u origin feature/capture-tm-c-20261005
 ```
 
 涉及代码修改时显式添加实际修改的文件，不用`git add .`。完整run/cache/data/weights不入Git。本包没有自动commit/push脚本，也不保存凭据。
@@ -118,7 +118,7 @@ git push -u origin research/ae-tm-loop-20261007
 
 R1完成后，每个进程先只用一个可用GPU，例如`CUDA_VISIBLE_DEVICES=1`；但可见卡设置不负责把CPU模型搬到CUDA。等CLI真实支持device并经过测试再传对应参数。初期不做DDP，避免四张卡只加快错误实验。
 
-同一时间只让一个集成agent写研究分支。并行实验读同一代码快照、写不同输出目录。需要并行实现时用独立branch/worktree，按PR合并；不要一开始就开六个相互争改文件的agent。
+同一时间只让一个集成agent写课题集成分支。并行实验读同一代码快照、写不同输出目录。需要并行实现时用独立branch/worktree，按PR合并；不要一开始就开六个相互争改文件的agent。
 
 ## 8. 首轮成功的定义
 
