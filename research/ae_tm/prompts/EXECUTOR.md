@@ -8,6 +8,6 @@
 
 报告分开写：实测事实、解释假设、未做事项、代码变更、需要ChatGPT决策的一个问题。程序成功、CUDA可见、CUDA训练、科学收益是不同状态。缺数据/缺GPU支持就写blocked，不能造数据或数值补齐。
 
-只将获准公开的代码、任务与小型结果提交GitHub。仓库公开，key、公司材料、数据/权重/完整cache留本地。当前分支为research/ae-tm-loop-20261007，按RUNBOOK拉取后执行，不再应用旧ZIP/patch；不修改main，不force push。
+只将获准公开的代码、任务与小型结果提交GitHub。仓库公开，key、公司材料、数据/权重/完整cache留本地。当前分支为feature/capture-tm-c-20261005，按RUNBOOK拉取后执行，不再应用旧ZIP/patch；不修改main，不force push。
 
-完成并检查报告后提交/推送研究分支，输出提交ID和报告路径，然后停止等待下一轮。
+完成并检查报告后提交/推送课题集成分支，输出提交ID和报告路径，然后停止等待下一轮。
