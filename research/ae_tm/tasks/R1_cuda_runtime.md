@@ -1,6 +1,6 @@
 # R1：让现有训练真实使用GPU
 
-状态：PLANNED；R0回传后细化，暂不自动执行。
+状态：SOFTWARE_SMOKE_PASSED；2026-10-07用户授权的AutoDL回传为335测试通过/5跳过及8组合成软件链退出0。原始逐组/parity输出保存于实例，公开回传范围见[本轮报告](../reports/R1/autodl-smoke-20261007/reply.md)。真实S24/R2尚未完成。
 
 ## 只解决这个问题
 
