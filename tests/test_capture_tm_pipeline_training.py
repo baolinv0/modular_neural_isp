@@ -117,6 +117,23 @@ def generated_archive(tmp_path_factory):
     return archive
 
 
+def test_development_archive_loader_does_not_open_official_test(generated_archive, tmp_path):
+    # Missing a pre-decode split filter would attempt to open this absent file.
+    from capture_tm.pipeline import load_acquisition_manifest
+
+    shutil.copytree(generated_archive.parent, tmp_path / 'archive')
+    manifest = tmp_path / 'archive' / 'manifest.json'
+    payload = json.loads(manifest.read_text())
+    for value in payload['schemes'].values():
+        for row in value['records']:
+            if row['split'] == 'test':
+                row['path'] = 'OFFICIAL_TEST_MUST_NOT_BE_OPENED.pt'
+    manifest.write_text(json.dumps(payload))
+    loaded = load_acquisition_manifest(manifest, splits={'train', 'val'})
+    for value in loaded['schemes'].values():
+        assert {row['split'] for row in value['records']} == {'train', 'val'}
+
+
 def test_relocated_archive_trains_all_eight_groups_and_restores_raw_acquisition(
         generated_archive, tmp_path, monkeypatch):
     # Archive paths must remain relative; moving the complete acquisition must

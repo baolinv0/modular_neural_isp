@@ -154,7 +154,7 @@ def _validate_record(sample, row, plans, manifest, sensor, acquisition):
                     raise ValueError('capture metadata differs from physical acquisition profile/exposure/readout plan')
 
 
-def load_acquisition_manifest(path, *, validate_records=True):
+def load_acquisition_manifest(path, *, validate_records=True, splits=None):
     """Validate metadata and optionally samples, returning relocatable absolute rows."""
     from .acquisition import AcquisitionProfile
     from .pipeline import validate_capture_protocol
@@ -206,11 +206,13 @@ def load_acquisition_manifest(path, *, validate_records=True):
             sample_path = Path(row['path'])
             sample_path = sample_path if sample_path.is_absolute() else path.parent / sample_path
             row['path'] = str(sample_path.resolve())
-            if validate_records:
+            if validate_records and (splits is None or row['split'] in splits):
                 sample = torch.load(row['path'], map_location='cpu', weights_only=True)
                 _validate_record(sample, row, plans, value, sensor, acquisition)
                 target_identity = _payload_hash(sample['target'].numpy())
                 if row['scene_id'] in targets and targets[row['scene_id']] != target_identity:
                     raise ValueError('Apple/Samsung targets for same scene must be identical')
                 targets[row['scene_id']] = target_identity
+        if splits is not None:
+            info['records'] = [row for row in rows if row['split'] in splits]
     return result

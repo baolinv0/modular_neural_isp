@@ -118,7 +118,7 @@ def _plan_dict(plan):
 
 
 def build_capture_cache(scenes, sensor, plans, scheme, output, *, noise_seeds, weights=None,
-                        candidate_chunk_size=4, render_ev=0.):
+                        candidate_chunk_size=4, render_ev=0., scene_indices=None):
     """Prepare one scene at a time; all four groups consume the same cache."""
     from .capture_plan import observe_previews, render_capture, rule_plan_index
     from .joint_objective import fixed_target
@@ -131,7 +131,8 @@ def build_capture_cache(scenes, sensor, plans, scheme, output, *, noise_seeds, w
     started = time.perf_counter()
     with torch.no_grad():
         for index, scene in enumerate(scenes):
-            previews, state, preview_meta = observe_previews(scene, sensor, seed=100000 + index)
+            seed_index = index if scene_indices is None else scene_indices[scene.scene_id]
+            previews, state, preview_meta = observe_previews(scene, sensor, seed=100000 + seed_index)
             rule_index = int(rule_plan_index(previews, state, plans, sensor))
             sharp = _sharp_reference(scene, sensor)
             target = fixed_target(sharp[None], render_ev=render_ev)[0]
@@ -142,7 +143,7 @@ def build_capture_cache(scenes, sensor, plans, scheme, output, *, noise_seeds, w
                 for start in range(0, len(plans), candidate_chunk_size):
                     subset = plans[start:start + candidate_chunk_size]
                     captures = [render_capture(scene, plan, sensor,
-                                seed=int(repeat) + 100003 * (index + 1), noisy=True) for plan in subset]
+                                seed=int(repeat) + 100003 * (seed_index + 1), noisy=True) for plan in subset]
                     images = torch.stack([cap['image'] for cap in captures])
                     reliability = torch.stack([cap['reliability'] for cap in captures])
                     ev = images.new_tensor([cap['capture_ev'] for cap in captures])
@@ -235,20 +236,33 @@ def build_archive_cache(archive, scheme, output, *, weights=None,
     return info
 
 
-def _load(record):
-    return torch.load(record['path'], map_location='cpu', weights_only=True)
+def _to_device(value, device):
+    """Move one cache record recursively, preserving its non-tensor metadata."""
+    if isinstance(value, torch.Tensor):
+        return value.to(device)
+    if isinstance(value, dict):
+        return {key: _to_device(item, device) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_to_device(item, device) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_to_device(item, device) for item in value)
+    return value
+
+
+def _load(record, device='cpu'):
+    return _to_device(torch.load(record['path'], map_location='cpu', weights_only=True), device)
 
 
 def _inputs(record, features):
     count = features.shape[0]
     return (record['previews'][None], record['state'][None], features[None],
-            torch.ones(1, count, dtype=torch.bool))
+            torch.ones(1, count, dtype=torch.bool, device=features.device))
 
 
 def _render(record, tm, noise_index, candidate_indices):
     from .joint_objective import image_metrics
 
-    ids = torch.as_tensor(candidate_indices, dtype=torch.long)
+    ids = torch.as_tensor(candidate_indices, dtype=torch.long, device=record['target'].device)
     flat = ids + noise_index * record['num_plans']
     prepared = {key: value[flat] for key, value in record['prepared'].items()}
     output = tm.render_prepared(prepared, render_ev=record['render_ev'])
@@ -271,7 +285,7 @@ def _teacher_costs(metadata, tm, chunk_size):
     costs = {}
     with torch.no_grad():
         for row in metadata:
-            record = _load(row)
+            record = _load(row, next(tm.parameters()).device)
             repeats = [torch.cat([value[0] for _, value in _cost_chunks(record, tm, n, chunk_size)])
                        for n in range(len(record['noise_seeds']))]
             costs[record['scene_id']] = torch.stack(repeats).mean(0)[None]
@@ -293,7 +307,7 @@ def _warmstart(policy, tm, train, val, features, *, epochs, lr, seed, chunk_size
         order = np.random.default_rng(seed + epoch).permutation(len(train))
         losses = []
         for index in order:
-            record = _load(train[int(index)])
+            record = _load(train[int(index)], features.device)
             args = _inputs(record, features)
             scores = policy(*args)
             loss = warmstart_loss(scores, teacher[record['scene_id']], args[-1])
@@ -306,7 +320,7 @@ def _warmstart(policy, tm, train, val, features, *, epochs, lr, seed, chunk_size
         with torch.no_grad():
             policy.eval()
             val_cost = float(np.mean([float(teacher[row['scene_id']][0,
-                int(policy(*_inputs(_load(row), features)).argmax(-1))]) for row in val]))
+                int(policy(*_inputs(_load(row, features.device), features)).argmax(-1))]) for row in val]))
         history.append({'epoch': epoch + 1, 'train_loss': float(np.mean(losses)), 'val_cost': val_cost})
         if val_cost < best:
             best, selected, best_state = val_cost, epoch + 1, _state(policy)
@@ -324,17 +338,21 @@ def _mean_metrics(rows):
     return {key: float(np.mean([row[key] for row in rows])) for key in keys if all(key in row for row in rows)}
 
 
-def _evaluate(metadata, policy, tm, features, *, learned_ae, output=None):
+def _evaluate(metadata, policy, tm, features, *, learned_ae, output=None, evaluation_split='test'):
     policy.eval()
     tm.eval()
     rows = []
+    runtime = {}
     with torch.no_grad():
         for scene_index, row in enumerate(metadata):
-            record = _load(row)
+            record = _load(row, features.device)
             idx = int(policy(*_inputs(record, features)).argmax(-1)) if learned_ae else record['rule_index']
             repeats, predictions = [], []
             for n, noise_seed in enumerate(record['noise_seeds']):
                 prediction, metrics = _render(record, tm, n, [idx])
+                runtime = {'output_device': str(prediction.device), 'input_devices': {
+                    key: str(record[key].device) for key in ('previews', 'state', 'target')}}
+                runtime['input_devices']['plan_features'] = str(features.device)
                 metrics = {key: float(value[0]) for key, value in metrics.items()}
                 metrics['radiance_mse'] = float(record['radiance_mse'][n, idx])
                 repeats.append({'noise_seed': noise_seed, **metrics})
@@ -349,22 +367,22 @@ def _evaluate(metadata, policy, tm, features, *, learned_ae, output=None):
             if output is not None:
                 from PIL import Image
                 strip = torch.cat((record['target'], predictions[0]), -1)
-                array = (strip.permute(1, 2, 0).clamp(0, 1).numpy() * 255).round().astype(np.uint8)
-                Image.fromarray(array).save(Path(output) / f'test_{scene_index:04d}_target_output.png')
+                array = (strip.permute(1, 2, 0).detach().cpu().clamp(0, 1).numpy() * 255).round().astype(np.uint8)
+                Image.fromarray(array).save(Path(output) / f'{evaluation_split}_{scene_index:04d}_target_output.png')
     return {'means': _mean_metrics(rows), 'per_scene': rows,
-            'actions': dict(Counter(str(row['action_index']) for row in rows))}
+            'actions': dict(Counter(str(row['action_index']) for row in rows)), 'runtime': runtime}
 
 
 def _train_group(group, scheme, initial, metadata, features, output, *, epochs, seed, ae_lr, tm_lr,
-                 chunk_size, weights):
+                 chunk_size, weights, evaluation_split='test'):
     from .learned_policy import TemporalExposurePolicy
     from .learned_tone import ConditionalToneMapper
 
     learned_ae, learned_tm = group[-2] == '1', group[-1] == '1'
     _seed(seed)
-    policy = TemporalExposurePolicy(**initial['policy_kwargs'])
+    policy = TemporalExposurePolicy(**initial['policy_kwargs']).to(features.device)
     policy.load_state_dict(initial['policy_state'])
-    tm = ConditionalToneMapper(scheme, weights=weights, trainable=learned_tm)
+    tm = ConditionalToneMapper(scheme, weights=weights, trainable=learned_tm).to(features.device)
     tm.load_state_dict(initial['tm_state'])
     policy.requires_grad_(learned_ae)
     parameters = []
@@ -378,6 +396,11 @@ def _train_group(group, scheme, initial, metadata, features, output, *, epochs, 
     output.mkdir(parents=True, exist_ok=True)
     steps = {'ae': 0, 'tm': 0}
     history = []
+    runtime = {'parameter_device': str(next(tm.parameters()).device),
+               'gradient_norm_max': {'ae': 0., 'tm': 0.}, 'input_devices': {}, 'output_device': None}
+    if features.is_cuda:
+        torch.cuda.synchronize(features.device)
+        torch.cuda.reset_peak_memory_stats(features.device)
     started = time.perf_counter()
     baseline_val = _evaluate(splits['val'], policy, tm, features, learned_ae=learned_ae)['means']['cost']
     best, selected_epoch = baseline_val, 0
@@ -387,7 +410,7 @@ def _train_group(group, scheme, initial, metadata, features, output, *, epochs, 
                 'policy_kwargs': initial['policy_kwargs'], 'policy_state': _state(policy), 'tm_state': _state(tm),
                 'optimizer_steps': dict(steps), 'learned_ae': learned_ae, 'learned_tm': learned_tm,
                 'selected_on': 'validation cost; test scenes excluded',
-                'plan_features': features.clone(), 'sensor': initial['sensor'], 'plans': initial['plans'],
+                'plan_features': features.detach().cpu().clone(), 'sensor': initial['sensor'], 'plans': initial['plans'],
                 'tm_weights': str(weights) if weights else None, 'render_ev': initial['render_ev'],
                 'acquisition': initial.get('acquisition'), 'manifest_kind': initial.get('manifest_kind')}
 
@@ -398,7 +421,9 @@ def _train_group(group, scheme, initial, metadata, features, output, *, epochs, 
         order = np.random.default_rng(seed + 1009 + epoch).permutation(len(splits['train']))
         losses = []
         for index in order:
-            record = _load(splits['train'][int(index)])
+            record = _load(splits['train'][int(index)], features.device)
+            runtime['input_devices'] = {key: str(record[key].device) for key in ('previews', 'state', 'target')}
+            runtime['input_devices']['plan_features'] = str(features.device)
             for repeat in range(len(record['noise_seeds'])):
                 optimizer.zero_grad(set_to_none=True)
                 if learned_ae:
@@ -410,10 +435,18 @@ def _train_group(group, scheme, initial, metadata, features, output, *, epochs, 
                     value, _ = backward_expectation(scores, chunks, args[-1],
                                                     learn_ae=True, learn_tm=learned_tm)
                 else:
-                    _, metrics = _render(record, tm, repeat, [record['rule_index']])
+                    prediction, metrics = _render(record, tm, repeat, [record['rule_index']])
+                    runtime['output_device'] = str(prediction.device)
                     loss = metrics['cost'].mean()
                     loss.backward()
                     value = float(loss.detach())
+                for name, module in (('ae', policy), ('tm', tm)):
+                    grads = [p.grad for p in module.parameters() if p.grad is not None]
+                    if grads:
+                        norm = float(torch.stack([g.detach().square().sum() for g in grads]).sum().sqrt())
+                        if not np.isfinite(norm):
+                            raise RuntimeError(f'nonfinite {name} gradient')
+                        runtime['gradient_norm_max'][name] = max(runtime['gradient_norm_max'][name], norm)
                 torch.nn.utils.clip_grad_norm_([p for item in parameters for p in item['params']], 5.)
                 optimizer.step()
                 steps['ae'] += int(learned_ae)
@@ -425,6 +458,9 @@ def _train_group(group, scheme, initial, metadata, features, output, *, epochs, 
             best, selected_epoch = validation, epoch + 1
             torch.save(checkpoint(epoch + 1), output / 'selected.pt')
     torch.save(checkpoint(epochs if optimizer is not None else 0), output / 'last.pt')
+    if features.is_cuda:
+        torch.cuda.synchronize(features.device)
+        runtime['peak_allocated_bytes'] = torch.cuda.max_memory_allocated(features.device)
     training = {'group': group, 'history': history, 'initial_val_cost': baseline_val,
                 'selected_epoch': selected_epoch, 'selected_val_cost': best, 'optimizer_steps': steps,
                 'ae_warmup_optimizer_steps': initial['warmstart']['optimizer_steps'] if learned_ae else 0,
@@ -436,21 +472,31 @@ def _train_group(group, scheme, initial, metadata, features, output, *, epochs, 
                 'update_budget': 'one optimizer step per train scene per noise repeat per epoch',
                 'train_candidate_renders_per_step': int(features.shape[0]) if learned_ae else int(learned_tm),
                 'joint_gradient': 'exact separate-candidate expectation; split disjoint-parameter backward'}
-    _json(output / 'training.json', training)
     selected = torch.load(output / 'selected.pt', map_location='cpu', weights_only=True)
     policy.load_state_dict(selected['policy_state'])
     tm.load_state_dict(selected['tm_state'])
-    evaluation = _evaluate(splits['test'], policy, tm, features, learned_ae=learned_ae, output=output)
+    runtime['checkpoint_reload_device'] = str(next(tm.parameters()).device)
+    evaluation = _evaluate(splits[evaluation_split], policy, tm, features, learned_ae=learned_ae,
+                           output=output, evaluation_split=evaluation_split)
+    runtime.update(evaluation['runtime'])
+    runtime['policy_parameter_device'] = str(next(policy.parameters()).device)
+    if features.is_cuda:
+        torch.cuda.synchronize(features.device)
+        runtime['peak_allocated_bytes'] = torch.cuda.max_memory_allocated(features.device)
+    training['runtime'] = runtime
+    _json(output / 'training.json', training)
     evaluation.update({'group': group, 'seed': seed, 'test_scenes': len(splits['test']),
+                       'evaluation_split': evaluation_split,
                        'selected_epoch': selected_epoch, 'training': training,
-                       'evidence': 'held-out simulator results; not real-camera quality validation'})
+                       'evidence': ('development validation; reused for checkpoint selection' if evaluation_split == 'val'
+                                    else 'held-out simulator results; not real-camera quality validation')})
     _json(output / 'evaluation.json', evaluation)
     return evaluation
 
 
 def run_factorial(manifest, output, *, scheme='both', epochs=10, warmup=5, seeds=(0,),
                   noise_seeds=(0, 1), threads=2, prepare_threads=None, candidate_chunk_size=4, ae_lr=1e-3,
-                  tm_lr=3e-4, weights=None, render_ev=0.):
+                  tm_lr=3e-4, weights=None, render_ev=0., device='cpu', evaluation_split='test'):
     """Execute four controlled groups from v1 scenes or a v2 RAW archive.
 
     Archive noise repeats, target intent, and physical plans are fixed inputs;
@@ -458,6 +504,15 @@ def run_factorial(manifest, output, *, scheme='both', epochs=10, warmup=5, seeds
     """
     if scheme not in ('apple', 'samsung', 'both'):
         raise ValueError('scheme must be apple, samsung or both')
+    if evaluation_split not in ('val', 'test'):
+        raise ValueError('evaluation_split must be val or test')
+    device = torch.device(device)
+    if device.type not in ('cpu', 'cuda'):
+        raise ValueError('device must be cpu or cuda')
+    if device.type == 'cuda' and not torch.cuda.is_available():
+        raise RuntimeError('CUDA requested but unavailable')
+    required_splits = {'train', 'val'} if evaluation_split == 'val' else {'train', 'val', 'test'}
+    load_splits = required_splits if evaluation_split == 'val' else None
     if epochs < 1 or warmup < 0 or threads < 1 or candidate_chunk_size < 1 or min(ae_lr, tm_lr) <= 0:
         raise ValueError('invalid epoch, warmup, thread, chunk or learning-rate setting')
     prepare_threads = threads if prepare_threads is None else prepare_threads
@@ -479,16 +534,18 @@ def run_factorial(manifest, output, *, scheme='both', epochs=10, warmup=5, seeds
             raise ValueError('requested noise_seeds must match archived base noise seeds')
         from .pipeline import load_acquisition_manifest
         from .types import SensorProfile
-        archive = load_acquisition_manifest(manifest_path)
+        archive = load_acquisition_manifest(manifest_path, splits=load_splits)
         sensor = SensorProfile.from_dict(archive['sensor'])
         for name in names:
-            if set(row['split'] for row in archive['schemes'][name]['records']) != {'train', 'val', 'test'}:
-                raise ValueError(f'separate train, val and test scene splits are required for {name}')
+            if set(row['split'] for row in archive['schemes'][name]['records']) != required_splits:
+                label = 'train and val' if evaluation_split == 'val' else 'train, val and test'
+                raise ValueError(f'separate {label} scene splits are required for {name}')
         scene_rows = archive['schemes'][names[0]]['records']
     else:
-        sensor, scenes = load_manifest(manifest_path)
-        if set(scene.split for scene in scenes) != {'train', 'val', 'test'}:
-            raise ValueError('separate train, val and test scene splits are required')
+        sensor, scenes = load_manifest(manifest_path, splits=load_splits)
+        if set(scene.split for scene in scenes) != required_splits:
+            raise ValueError('separate train, val and test scene splits are required' if evaluation_split == 'test'
+                             else 'separate train and val scene splits are required')
         scene_rows = [{'split': scene.split, 'source_kind': scene.source_kind} for scene in scenes]
     from .capture_plan import CapturePlan, build_plan_bank, plan_features
     from .learned_policy import TemporalExposurePolicy
@@ -506,7 +563,8 @@ def run_factorial(manifest, output, *, scheme='both', epochs=10, warmup=5, seeds
               'config': {'epochs': epochs, 'warmup': warmup, 'seeds': list(seeds),
                          'noise_seeds': list(noise_seeds), 'threads': threads, 'prepare_threads': prepare_threads,
                          'candidate_chunk_size': candidate_chunk_size, 'ae_lr': ae_lr, 'tm_lr': tm_lr,
-                         'render_ev': render_ev, 'weights': str(weights) if weights else 'shipped style 0'},
+                         'render_ev': render_ev, 'weights': str(weights) if weights else 'shipped style 0',
+                         'device': str(device), 'evaluation_split': evaluation_split},
               'scene_counts': {split: sum(row['split'] == split for row in scene_rows) for split in ('train', 'val', 'test')},
               'source_kinds': dict(Counter(row['source_kind'] for row in scene_rows)),
               'evidence': 'simulation protocol experiment; real sensor calibration and real captures remain required'}
@@ -515,13 +573,14 @@ def run_factorial(manifest, output, *, scheme='both', epochs=10, warmup=5, seeds
         plans = (build_plan_bank(name, sensor) if archive is None else [
             CapturePlan(tuple(CaptureAction(**action) for action in value['actions']),
                         tuple(value['centers_s'])) for value in archive['schemes'][name]['plans']])
-        features = plan_features(plans, sensor)
+        features = plan_features(plans, sensor).to(device)
         torch.set_num_threads(prepare_threads)
         try:
             if archive is None:
                 cache = build_capture_cache(scenes, sensor, plans, name, output / name / 'cache',
                                             noise_seeds=noise_seeds, weights=weights,
-                                            candidate_chunk_size=candidate_chunk_size, render_ev=render_ev)
+                                            candidate_chunk_size=candidate_chunk_size, render_ev=render_ev,
+                                            scene_indices={row['scene_id']: index for index, row in enumerate(payload['scenes'])})
             else:
                 cache = build_archive_cache(archive, name, output / name / 'cache', weights=weights,
                                             candidate_chunk_size=candidate_chunk_size, render_ev=render_ev)
@@ -532,8 +591,8 @@ def run_factorial(manifest, output, *, scheme='both', epochs=10, warmup=5, seeds
         for seed in seeds:
             _seed(int(seed))
             kwargs = {'width': 16, 'history_length': 3}
-            policy = TemporalExposurePolicy(**kwargs)
-            tm = ConditionalToneMapper(name, weights=weights, trainable=False).eval()
+            policy = TemporalExposurePolicy(**kwargs).to(device)
+            tm = ConditionalToneMapper(name, weights=weights, trainable=False).to(device).eval()
             warm = _warmstart(policy, tm, [r for r in records if r['split'] == 'train'],
                               [r for r in records if r['split'] == 'val'], features,
                               epochs=warmup, lr=ae_lr, seed=int(seed), chunk_size=candidate_chunk_size)
@@ -550,9 +609,10 @@ def run_factorial(manifest, output, *, scheme='both', epochs=10, warmup=5, seeds
                 group = prefix + suffix
                 result = _train_group(group, name, initial, records, features, seed_dir / group,
                                       epochs=epochs, seed=int(seed), ae_lr=ae_lr, tm_lr=tm_lr,
-                                      chunk_size=candidate_chunk_size, weights=weights)
+                                      chunk_size=candidate_chunk_size, weights=weights,
+                                      evaluation_split=evaluation_split)
                 collected[group].append(result)
-                print(f'{name} seed={seed} {group}: test_cost={result["means"]["cost"]:.6f}, '
+                print(f'{name} seed={seed} {group}: {evaluation_split}_cost={result["means"]["cost"]:.6f}, '
                       f'selected_epoch={result["selected_epoch"]}', flush=True)
         groups = {}
         for group, runs in collected.items():

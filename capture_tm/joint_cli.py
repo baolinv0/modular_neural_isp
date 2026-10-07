@@ -32,6 +32,9 @@ def main(argv=None):
     parser.add_argument('--tm-lr', type=float, default=3e-4)
     parser.add_argument('--weights', help='Modular Neural ISP checkpoint; defaults to shipped style 0')
     parser.add_argument('--render-ev', type=float, default=0.)
+    parser.add_argument('--device', default='cpu', help='training/render device; capture preparation stays CPU')
+    parser.add_argument('--evaluation-split', choices=('val', 'test'), default='test',
+                        help='val selects development mode and never decodes test samples')
     args = parser.parse_args(argv)
     report = run_factorial(**vars(args))
     print(json.dumps({name: {group: result['means'] for group, result in value['groups'].items()}

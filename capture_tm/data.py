@@ -55,7 +55,7 @@ def _content_provenance(provenance: dict, frames: np.ndarray, mask: np.ndarray |
     return value
 
 
-def load_manifest(path) -> tuple[SensorProfile,list[Scene]]:
+def load_manifest(path, *, splits=None) -> tuple[SensorProfile,list[Scene]]:
     path = Path(path).expanduser().resolve()
     payload = json.loads(path.read_text(encoding="utf-8"))
     if payload.get("version") != 1:
@@ -64,6 +64,7 @@ def load_manifest(path) -> tuple[SensorProfile,list[Scene]]:
         raise ValueError("manifest requires sensor and nonempty scenes")
     sensor = SensorProfile.from_dict(payload["sensor"])
     scenes, identities, sources = [], set(), {}
+    records = []
     for record in payload["scenes"]:
         required = {"scene_id","split","frames_path","frame_times_s","source_kind","domain","source_id"}
         if not isinstance(record,dict) or not required <= record.keys():
@@ -79,8 +80,25 @@ def load_manifest(path) -> tuple[SensorProfile,list[Scene]]:
             raise ValueError("provenance must be an object")
         if record["scene_id"] in identities:
             raise ValueError("duplicate scene identity")
+        if record['split'] not in {'train', 'val', 'test'}:
+            raise ValueError('split must be train, val, or test')
         source = record["source_id"]
         frame_path = (path.parent/record["frames_path"]).resolve()
+        source_keys = [('source_id', source), ('frames_path', str(frame_path))]
+        if provenance.get('input_sha256'):
+            source_keys.append(('input_sha256', str(provenance['input_sha256'])))
+        for source_key in source_keys:
+            if source_key in sources and sources[source_key] != record['split']:
+                raise ValueError(f'source identity {source_key!r} crosses scene splits')
+            sources[source_key] = record['split']
+        identities.add(record['scene_id'])
+        records.append((record, frame_path, provenance))
+    # Validate declared identities even for excluded splits, without opening
+    # their pixels. Decoded-content identities can only cover included splits.
+    for record, frame_path, provenance in records:
+        if splits is not None and record['split'] not in splits:
+            continue
+        source = record['source_id']
         frame_array = _float_array(frame_path)
         mask_array = None
         if record.get("subject_mask_path") is not None:
@@ -94,7 +112,6 @@ def load_manifest(path) -> tuple[SensorProfile,list[Scene]]:
             if source_key in sources and sources[source_key] != record["split"]:
                 raise ValueError(f"source identity {source_key!r} crosses scene splits")
             sources[source_key] = record["split"]
-        identities.add(record["scene_id"])
         frames = torch.from_numpy(frame_array)
         mask = None if mask_array is None else torch.from_numpy(mask_array)
         scenes.append(Scene(record["scene_id"],record["split"],frames,

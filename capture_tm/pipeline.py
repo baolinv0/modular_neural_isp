@@ -218,9 +218,9 @@ def generate_acquisition_dataset(manifest, output, *, scheme='both', acquisition
     return output / 'manifest.json'
 
 
-def load_acquisition_manifest(path, *, validate_records=True):
+def load_acquisition_manifest(path, *, validate_records=True, splits=None):
     from .pipeline_validation import load_acquisition_manifest as load
-    return load(path, validate_records=validate_records)
+    return load(path, validate_records=validate_records, splits=splits)
 
 
 def validate_acquisition_dataset(path, output=None, *, verify_composition=True, threads=1):
