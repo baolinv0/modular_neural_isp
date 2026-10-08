@@ -120,7 +120,7 @@ def posterior_tables(mass,nodes_per_bin,likelihood):
         evidence=p@weights
         if not np.isfinite(evidence).all():
             raise FloatingPointError("Nonfinite point posterior evidence")
-        valid=evidence>0
+        valid=evidence>=1e-250
         prediction=np.empty(ADC_MAX+1)
         prediction[valid]=(p[valid]@(weights*target))/evidence[valid]
         if not valid.all():

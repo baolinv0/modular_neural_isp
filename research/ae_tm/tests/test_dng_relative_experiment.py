@@ -69,3 +69,13 @@ def test_log_poisson_upper_tail_matches_representable_complete_tail():
     direct=exp.poisson.sf(1032,mu)
     good=direct>0
     np.testing.assert_allclose(logtail[good],np.log(direct[good]),rtol=1e-13,atol=1e-12)
+
+def test_positive_subnormal_evidence_uses_log_scaled_posterior():
+    likelihood=exp.ADCLikelihood()
+    mass=np.array([0.,.5,.5,0.])
+    x,w=exp.prior_nodes(mass,4)
+    expected=exp.posterior_underflow_rows(
+        likelihood,np.array([3121]),125*x,w,exp.tone(x))[0]
+    table=exp.posterior_tables(mass,4,likelihood)
+    assert table[0,3121]==pytest.approx(expected,rel=1e-10,abs=1e-12)
+    assert table[0,3121]>.8
