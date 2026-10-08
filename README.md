@@ -129,7 +129,7 @@ To launch the interactive photo-editing tool, see the [`gui`](gui) directory.
 ## ⚙️ Training
 To retrain our framework, begin by training the denoiser network (see [`denoising`](denoising) for instructions). Then train the photofinishing module (refer to [`photofinishing`](photofinishing)). Finally, train the detail-enhancement network (see [`enhancement`](enhancement)).
 
-For interchangeable local tone-mapping research candidates, paired-data loading, training and evaluation, see the [TM algorithm library](tm_library/README.md).
+For interchangeable local tone-mapping research candidates, paired-data loading, training and evaluation, see the [TM algorithm library](tm_library/README.md). The [design motivation and public evidence](docs/tm_library_motivation.md) explain the chip architecture context, vendor references and A–E experiment roles.
 
 > **Note:** Training is currently supported on **CUDA and CPU only**. Training on Apple MPS is **not supported**.
 
