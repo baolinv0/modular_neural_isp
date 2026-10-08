@@ -52,7 +52,7 @@ def ifd_metadata(path: Path) -> list[dict]:
     def simple(value):
         if hasattr(value, "tolist"):
             return value.tolist()
-        if isinstance(value, tuple):
+        if isinstance(value, (tuple, bytes)):
             return list(value)
         if isinstance(value, np.generic):
             return value.item()
@@ -188,6 +188,11 @@ def run(root: Path, protocol_path: Path, output: Path, cache: Path):
             sources.append(item)
             print(json.dumps({"source":source_id,"group":gid,"split":split,
                               "decode_seconds":summary["decode_seconds"]}), flush=True)
+    source_hash_splits = {}
+    for item in sources:
+        source_hash_splits.setdefault(item["sha256"], set()).add(item["split"])
+    if any(len(splits) > 1 for splits in source_hash_splits.values()):
+        raise ValueError("Duplicate source content crosses split boundaries")
     hashes = {}
     for item in inventory:
         hashes.setdefault(item["sha256"], []).append(item["path"])
