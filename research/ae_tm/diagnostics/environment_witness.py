@@ -12,7 +12,7 @@ import tifffile
 
 def run():
     rng=np.random.default_rng(19)
-    photons=int(rng.poisson(12.5,size=256).sum())
+    photons=int(rng.poisson(100,size=32).sum())
     normal=float(ndtr(0))
     integral,error=quad(lambda x: x*x,0,1)
     assert photons==3146
@@ -21,7 +21,7 @@ def run():
     return {"python":platform.python_version(),
             "versions":{"numpy":np.__version__,"scipy":scipy.__version__,
                         "rawpy":rawpy.__version__,"tifffile":tifffile.__version__},
-            "witness":{"seed":19,"poisson_sum":photons,
+            "witness":{"seed":19,"poisson_mean":100,"poisson_count":32,"poisson_sum":photons,
                        "normal_cdf_zero":normal,"integral_x2":integral,
                        "quadrature_error":error},"status":"PASS"}
 
