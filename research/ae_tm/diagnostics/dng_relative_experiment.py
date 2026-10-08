@@ -14,6 +14,8 @@ import subprocess
 import time
 import numpy as np
 from scipy.ndimage import uniform_filter
+from scipy.special import logsumexp
+from scipy.stats import poisson
 from continuous_reference import (ADCLikelihood, ADC_MAX, FW, READ_SD,
                                   EXPOSURES, capture_codes, tone)
 
@@ -61,6 +63,53 @@ def prior_nodes(mass,nodes_per_bin):
     return np.r_[0.,values,1.],np.r_[mass[0],weights,mass[-1]]
 
 
+
+def stable_log_poisson_sf(last_count,means):
+    """Complete upper tail in log space; series relative remainder <=1e-15."""
+    means=np.asarray(means,dtype=float)
+    with np.errstate(divide="ignore"):
+        out=np.log(poisson.sf(last_count,means))
+    bad=(~np.isfinite(out))&(means>0)
+    if np.any(bad):
+        mu=means[bad]
+        if np.any(mu>last_count+1):
+            raise FloatingPointError("Unexpected upper-tail underflow above Poisson mean")
+        first=last_count+1
+        term=np.ones_like(mu)
+        total=term.copy()
+        for step in range(1,10000):
+            term*=mu/(first+step)
+            total+=term
+            next_term=term*mu/(first+step+1)
+            next_ratio=mu/(first+step+2)
+            bound=next_term/(1-next_ratio)
+            if np.all(bound<=1e-15*total):
+                break
+        else:
+            raise FloatingPointError("Poisson log-tail series failed convergence")
+        out[bad]=poisson.logpmf(first,mu)+np.log(total)
+    return out
+
+
+def posterior_underflow_rows(likelihood,codes,means,weights,target):
+    """Rescale the original Poisson/read/ADC sum; no Gaussian substitution."""
+    logpmf=poisson.logpmf(likelihood.counts[:,None],means[None,:])
+    with np.errstate(divide="ignore"):
+        logweights=np.log(weights)
+    logupper=stable_log_poisson_sf(likelihood.last_count,means)
+    predictions=[]
+    for code in codes:
+        row=likelihood.kernel.getrow(int(code))
+        logp=logsumexp(logpmf[row.indices]+np.log(row.data)[:,None],axis=0)
+        if code==ADC_MAX:
+            logp=np.logaddexp(logp,logupper)
+        z=logsumexp(logp+logweights)
+        if not np.isfinite(z):
+            raise FloatingPointError("No finite posterior evidence after log scaling")
+        predictions.append(np.exp(logp+logweights-z)@target)
+    return np.array(predictions)
+
+
 def posterior_tables(mass,nodes_per_bin,likelihood):
     """Exact ADC-code lookup of quadrature posterior; no code bin merging."""
     x,weights=prior_nodes(mass,nodes_per_bin)
@@ -69,9 +118,17 @@ def posterior_tables(mass,nodes_per_bin,likelihood):
     for exposure in EXPOSURES:
         p=likelihood.probabilities(np.arange(ADC_MAX+1),FW*exposure*x)
         evidence=p@weights
-        if np.any(evidence<=0) or not np.isfinite(evidence).all():
-            raise FloatingPointError("Zero/nonfinite point posterior evidence")
-        tables.append((p@(weights*target))/evidence)
+        if not np.isfinite(evidence).all():
+            raise FloatingPointError("Nonfinite point posterior evidence")
+        valid=evidence>0
+        prediction=np.empty(ADC_MAX+1)
+        prediction[valid]=(p[valid]@(weights*target))/evidence[valid]
+        if not valid.all():
+            prediction[~valid]=posterior_underflow_rows(
+                likelihood,np.flatnonzero(~valid),FW*exposure*x,weights,target)
+        if not np.isfinite(prediction).all():
+            raise FloatingPointError("Nonfinite point posterior prediction")
+        tables.append(prediction)
     return np.array(tables)
 
 
