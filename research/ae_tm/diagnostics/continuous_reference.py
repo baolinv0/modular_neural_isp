@@ -351,7 +351,8 @@ def summarize(costs, features, rules, fixed, rng, bootstraps):
 def run_diagnostic(*, seeds=(19, 37, 73), train_sources=1024, dev_sources=1024,
                    diagnostic_sources=2048, repeats=16, nodes=(32, 64, 128, 256),
                    selection_nodes=None, train_prior=Prior(), heldout_prior=Prior(copula="reverse"),
-                   chunk=256, likelihood_chunk=64, bootstraps=1000, smoke=False):
+                   chunk=256, likelihood_chunk=64, bootstraps=1000, smoke=False,
+                   source_metrics_dir=None):
     if min(train_sources, dev_sources, diagnostic_sources) < 2:
         raise ValueError("train/dev/diagnostic need at least two independent sources")
     if bootstraps < 2:
@@ -361,6 +362,9 @@ def run_diagnostic(*, seeds=(19, 37, 73), train_sources=1024, dev_sources=1024,
         raise ValueError("need integration nodes >=2")
     if selection_nodes is None:
         selection_nodes = max(node_counts)
+    if source_metrics_dir is not None:
+        source_metrics_dir = Path(source_metrics_dir)
+        source_metrics_dir.mkdir(parents=True, exist_ok=True)
     likelihood = ADCLikelihood()
     begin = time.perf_counter()
     report = {
@@ -435,6 +439,22 @@ def run_diagnostic(*, seeds=(19, 37, 73), train_sources=1024, dev_sources=1024,
             node_row["elapsed_seconds"] = time.perf_counter() - node_begin
             row["diagnostics_by_nodes"][str(count)] = node_row
         highest = max(node_counts)
+        if source_metrics_dir is not None:
+            row["source_metrics_files"] = {}
+            for name, (_, features, _) in frozen.items():
+                metrics_path = source_metrics_dir / f"seed_{seed}_{name}.npz"
+                with metrics_path.open("xb") as handle:
+                    np.savez_compressed(handle,
+                        source_index=np.arange(diagnostic_sources),
+                        expected_costs_by_action=all_costs[highest][name],
+                        feature_names=np.array(list(FEATURES)),
+                        preview_features=np.column_stack([features[n] for n in FEATURES]),
+                        frozen_policy_actions=np.column_stack(
+                            [apply_rule(features[n], rules[n]) for n in FEATURES]),
+                        dev_fixed_action_index=np.array(fixed),
+                        exposures=EXPOSURES,
+                        integration_nodes=np.array(highest))
+                row["source_metrics_files"][name] = metrics_path.name
         for count in node_counts:
             convergence = {}
             for name, (_, features, _) in frozen.items():
@@ -467,6 +487,7 @@ def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--out", type=Path, required=True)
     p.add_argument("--smoke", action="store_true")
+    p.add_argument("--source-metrics-dir", type=Path)
     p.add_argument("--seeds", type=int, nargs="+", default=[19, 37, 73])
     p.add_argument("--train-sources", type=int, default=1024)
     p.add_argument("--dev-sources", type=int, default=1024)
@@ -493,7 +514,8 @@ def main(argv=None):
         dev_sources=a.dev_sources, diagnostic_sources=a.diagnostic_sources,
         repeats=a.repeats, nodes=a.nodes, selection_nodes=a.selection_nodes,
         train_prior=train, heldout_prior=heldout, chunk=a.chunk,
-        likelihood_chunk=a.likelihood_chunk, bootstraps=a.bootstraps, smoke=a.smoke)
+        likelihood_chunk=a.likelihood_chunk, bootstraps=a.bootstraps, smoke=a.smoke,
+        source_metrics_dir=a.source_metrics_dir)
     a.out.parent.mkdir(parents=True, exist_ok=True)
     # Exclusive creation also prevents a concurrent run from overwriting a report.
     with a.out.open("x", encoding="utf-8") as handle:
