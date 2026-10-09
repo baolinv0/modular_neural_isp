@@ -1,5 +1,7 @@
 # Modular Neural Image Signal Processing
 
+Research extension: [Capture-TM — single-frame and HDR joint AE/TM algorithms, eight factorial experiments, dataset import and inference](capture_tm/README.md).
+
 #### **[Mahmoud Afifi](https://www.mafifi.info/), [Zhongling Wang](https://ece.uwaterloo.ca/~z2228wan/), [Ran Zhang](https://www.linkedin.com/in/ran-zhang-48b85021/), and [Michael S. Brown](http://www.cse.yorku.ca/~mbrown/)**
 
 ---

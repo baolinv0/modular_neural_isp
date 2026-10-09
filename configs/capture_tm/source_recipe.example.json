@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "sensor": {
+    "full_well_e": 10000.0,
+    "read_noise_e": 3.0,
+    "adc_noise_dn": 0.5,
+    "bit_depth": 12,
+    "black_level_dn": 64.0,
+    "reference_exposure_s": 0.008333333333333333,
+    "calibration_status": "assumed_engineering",
+    "provenance": {
+      "source": "example assumptions; replace with measured device values"
+    }
+  },
+  "scenes": [
+    {
+      "scene_id": "hdr_episode_001",
+      "source_id": "original_episode_001",
+      "dependency_ids": ["original_episode_001"],
+      "split": "train",
+      "input_path": "../../data/local_hdr_episode.npy",
+      "input_layout": "TCHW",
+      "input_domain": "sensor_linear_relative_radiance",
+      "frame_times_s": [-0.25, -0.15, -0.05, 0.0, 0.05, 0.15],
+      "radiance_scale": 1.0,
+      "clean_reference_verified": false,
+      "provenance": {
+        "source_note": "supply a linear camera-RGB sequence with the specified actual sample times",
+        "source_optics": "already imaged; do not add a second complete PSF"
+      }
+    }
+  ]
+}

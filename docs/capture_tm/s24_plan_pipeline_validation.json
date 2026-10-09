@@ -1,0 +1,50 @@
+{
+  "valid": true,
+  "version": 1,
+  "manifest": "/workspace/scratch/4e2b872b5c6b/s24_plan_validation_20261005/acquisition/manifest.json",
+  "sensor_calibration_status": "assumed_engineering",
+  "acquisition": {
+    "cfa_pattern": "RGGB",
+    "spatial_downsample": 1,
+    "readout_s": 0.001,
+    "rolling_shutter_s": 0,
+    "input_stage": "post_optics",
+    "psf_kernels": null
+  },
+  "schemes": {
+    "apple": {
+      "scenes": 12,
+      "plans": 12,
+      "splits": {
+        "train": 4,
+        "val": 4,
+        "test": 4
+      },
+      "clean_references_declared": 12,
+      "source_kinds": [
+        "synthetic"
+      ]
+    },
+    "samsung": {
+      "scenes": 12,
+      "plans": 24,
+      "splits": {
+        "train": 4,
+        "val": 4,
+        "test": 4
+      },
+      "clean_references_declared": 12,
+      "source_kinds": [
+        "synthetic"
+      ]
+    }
+  },
+  "evidence": "relative-radiance simulation; real-device calibration and training gains unverified",
+  "raw_composition_verified": true,
+  "limitations": [
+    "relative-radiance anchor is not absolute photometric calibration",
+    "bilinear Bayer demosaic and fixed global-translation fusion are research baselines",
+    "demosaic noise is correlated; fusion observed-RGB variance is an approximation",
+    "validation checks simulator/schema consistency, not real-camera training benefit"
+  ]
+}

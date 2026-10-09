@@ -1,0 +1,27 @@
+data:
+  seed: 0
+  size: 64
+  scenes: 24
+oracle:
+  backend: modular
+  tm_mode: apple
+  repeats: 3
+  seed: 0
+  exposures_s: [0.0041666667, 0.0083333333, 0.0166666667, 0.0333333333]
+  analog_gains: [1.0, 2.0, 4.0]
+  capture_center_s: 0.025
+  preview_centers_s: [-0.04, -0.02, 0.0]
+  observation_actions:
+    - {exposure_s: 0.0083333333, analog_gain: 1.0}
+    - {exposure_s: 0.0083333333, analog_gain: 2.0}
+    - {exposure_s: 0.0083333333, analog_gain: 4.0}
+  constraints:
+    max_total_capture_s: 0.05
+    readout_s: 0.002
+    control_delay_frames: 1
+train:
+  epochs: 20
+  width: 24
+  batch_size: 8
+  seed: 0
+  device: cpu

@@ -1,0 +1,209 @@
+{
+  "version": 1,
+  "date": "2026-10-05",
+  "purpose": "software pipeline verification; not evidence of camera quality gain",
+  "environment": {
+    "python": "3.12.14",
+    "torch": "2.5.1+cpu",
+    "numpy": "1.26.4",
+    "OpenEXR": "3.3.3",
+    "device": "cpu"
+  },
+  "regression": {
+    "command": "python -m pytest -q",
+    "passed": 314,
+    "failed": 0,
+    "seconds": 289.51
+  },
+  "archive_validation": {
+    "valid": true,
+    "version": 1,
+    "manifest": "runs/capture_tm/raw-pipeline-demo/acquisition/manifest.json",
+    "sensor_calibration_status": "assumed_engineering",
+    "acquisition": {
+      "cfa_pattern": "RGGB",
+      "spatial_downsample": 1,
+      "readout_s": 0.001,
+      "rolling_shutter_s": 0.0,
+      "input_stage": "post_optics",
+      "psf_kernels": null
+    },
+    "schemes": {
+      "apple": {
+        "scenes": 12,
+        "plans": 12,
+        "splits": {
+          "train": 4,
+          "val": 4,
+          "test": 4
+        },
+        "clean_references_declared": 12,
+        "source_kinds": [
+          "synthetic"
+        ]
+      },
+      "samsung": {
+        "scenes": 12,
+        "plans": 24,
+        "splits": {
+          "train": 4,
+          "val": 4,
+          "test": 4
+        },
+        "clean_references_declared": 12,
+        "source_kinds": [
+          "synthetic"
+        ]
+      }
+    },
+    "evidence": "relative-radiance simulation; real-device calibration and training gains unverified",
+    "raw_composition_verified": true,
+    "limitations": [
+      "relative-radiance anchor is not absolute photometric calibration",
+      "bilinear Bayer demosaic and fixed global-translation fusion are research baselines",
+      "demosaic noise is correlated; fusion observed-RGB variance is an approximation",
+      "validation checks simulator/schema consistency, not real-camera training benefit"
+    ]
+  },
+  "pilot": {
+    "source_scenes": 12,
+    "size": [
+      16,
+      16
+    ],
+    "data_seed": 2026,
+    "noise_seeds": [
+      0
+    ],
+    "training_seeds": [
+      0
+    ],
+    "epochs": 1,
+    "warmup": 1,
+    "threads": 1,
+    "prepare_threads": 1,
+    "candidate_chunk_size": 4,
+    "render_ev": 0.0,
+    "manifest_sha256": "93cbf3c1374d4b503615770c91cdcdfec5c2bcb28dd959bd672f5c7f8c66c144",
+    "groups": {
+      "A00": {
+        "test_cost": 0.0564294655341655,
+        "selected_epoch": 0,
+        "optimizer_steps": {
+          "ae": 0,
+          "tm": 0
+        },
+        "checkpoint_profile_matches_archive": true
+      },
+      "A10": {
+        "test_cost": 0.0959255067864433,
+        "selected_epoch": 0,
+        "optimizer_steps": {
+          "ae": 4,
+          "tm": 0
+        },
+        "checkpoint_profile_matches_archive": true
+      },
+      "A01": {
+        "test_cost": 0.056090257596224546,
+        "selected_epoch": 1,
+        "optimizer_steps": {
+          "ae": 0,
+          "tm": 4
+        },
+        "checkpoint_profile_matches_archive": true
+      },
+      "A11": {
+        "test_cost": 0.09559432393871248,
+        "selected_epoch": 1,
+        "optimizer_steps": {
+          "ae": 4,
+          "tm": 4
+        },
+        "checkpoint_profile_matches_archive": true
+      },
+      "S00": {
+        "test_cost": 0.05383792473003268,
+        "selected_epoch": 0,
+        "optimizer_steps": {
+          "ae": 0,
+          "tm": 0
+        },
+        "checkpoint_profile_matches_archive": true
+      },
+      "S10": {
+        "test_cost": 0.05221378384158015,
+        "selected_epoch": 0,
+        "optimizer_steps": {
+          "ae": 4,
+          "tm": 0
+        },
+        "checkpoint_profile_matches_archive": true
+      },
+      "S01": {
+        "test_cost": 0.05352389079052955,
+        "selected_epoch": 1,
+        "optimizer_steps": {
+          "ae": 0,
+          "tm": 4
+        },
+        "checkpoint_profile_matches_archive": true
+      },
+      "S11": {
+        "test_cost": 0.05190749582834542,
+        "selected_epoch": 1,
+        "optimizer_steps": {
+          "ae": 4,
+          "tm": 4
+        },
+        "checkpoint_profile_matches_archive": true
+      }
+    }
+  },
+  "inference": {
+    "A11": {
+      "scene_id": "joint_0008",
+      "seed": 37,
+      "selected_index": 9,
+      "raw_frames": 1,
+      "raw_shape_per_frame": [
+        1,
+        16,
+        16
+      ],
+      "output_shape": [
+        3,
+        16,
+        16
+      ],
+      "output_finite": true,
+      "selected_plan_only": true,
+      "checkpoint_profile_matches_archive": true
+    },
+    "S11": {
+      "scene_id": "joint_0008",
+      "seed": 37,
+      "selected_index": 11,
+      "raw_frames": 3,
+      "raw_shape_per_frame": [
+        1,
+        16,
+        16
+      ],
+      "output_shape": [
+        3,
+        16,
+        16
+      ],
+      "output_finite": true,
+      "selected_plan_only": true,
+      "checkpoint_profile_matches_archive": true
+    }
+  },
+  "limits": [
+    "Engineering relative radiance and scalar noise; no measured phone calibration.",
+    "One-epoch tiny pilot verifies execution, not statistical AE/TM benefit.",
+    "Native OpenEXR fixture tested; real TIFF success fixture not tested.",
+    "Existing AE saturation and strategy concentration failure analyses remain applicable."
+  ]
+}

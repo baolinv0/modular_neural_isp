@@ -1,0 +1,118 @@
+{
+  "code_commit": "56b719fe448f78762c548849db6b03bbfb51a54a",
+  "kind": "synthetic_software_smoke_NOT_S24",
+  "local_cpu_suite": {
+    "passed": 331,
+    "skipped": 9,
+    "seconds": 241.05,
+    "exit_code": 0,
+    "python": "3.12",
+    "torch": "2.7.1+cpu"
+  },
+  "gpu_verification": {
+    "exit_code": 0,
+    "pytest": {
+      "passed": 335,
+      "skipped": 5,
+      "seconds": 349.37
+    },
+    "observed_summary": {
+      "python": "3.11.17",
+      "torch": "2.5.1+cu124",
+      "cuda_runtime": "12.4",
+      "gpu": "NVIDIA GeForce RTX 4080 SUPER",
+      "matmul_tf32": false,
+      "cudnn_tf32": false,
+      "scene_counts": {
+        "test": 0,
+        "train": 1,
+        "val": 1
+      },
+      "seconds": 58.636620968580246,
+      "groups": [
+        "A00",
+        "A01",
+        "A10",
+        "A11",
+        "S00",
+        "S01",
+        "S10",
+        "S11"
+      ]
+    },
+    "full_summary_bytes": 8929,
+    "full_per_group_json_copied": false,
+    "per_group_runtime_values": null
+  },
+  "cuda_parity": {
+    "tolerance": {
+      "atol": 0.0001,
+      "rtol": 0.001,
+      "relative_error_denominator_floor": 1e-8
+    },
+    "apple": {
+      "render": {
+        "max_abs": 2.384185791015625e-7,
+        "max_rel": 0.00001729400537442416
+      },
+      "policy_scores": {
+        "max_abs": 0,
+        "max_rel": 0
+      },
+      "expected_cost": {
+        "max_abs": 0,
+        "max_rel": 0
+      },
+      "ae_gradients": {
+        "max_abs": 2.5647750589996576e-10,
+        "max_rel": 0.000056251530622830614
+      },
+      "tm_gradients": {
+        "max_abs": 7.450580596923828e-9,
+        "max_rel": 6.592478030142956e-7
+      }
+    },
+    "samsung": {
+      "render": {
+        "max_abs": 3.5762786865234375e-7,
+        "max_rel": 0.00001729400537442416
+      },
+      "policy_scores": {
+        "max_abs": 0,
+        "max_rel": 0
+      },
+      "expected_cost": {
+        "max_abs": 0,
+        "max_rel": 0
+      },
+      "ae_gradients": {
+        "max_abs": 4.220055416226387e-10,
+        "max_rel": 0.00009143348870566115
+      },
+      "tm_gradients": {
+        "max_abs": 7.450580596923828e-9,
+        "max_rel": 0.0000027811156542156823
+      }
+    }
+  },
+  "data": {
+    "s24_downloaded": false,
+    "s24_training_executed": false,
+    "displayed_train_split_volumes": 14,
+    "displayed_volume_size_gb": 20,
+    "displayed_final_zip_size_gb": 7.8,
+    "approximate_total_gb": 287.8,
+    "observed_data_disk_gib": 50
+  },
+  "shutdown": {
+    "power_state": "已关机",
+    "readback_verified": true,
+    "initial_timer_readback": "2026-10-08 02:30:00",
+    "final_timer_readback": "2026-10-08 04:30:00",
+    "final_control_panel_server_clock": "2026-10-07 10:24",
+    "control_panel_timezone_verified": false,
+    "terminal_timezone_offset": "+08:00",
+    "timer_readback_inconsistency": true
+  },
+  "evidence_scope": "Browser Use execution result plus retained terminal canvas readback; host identifiers and credentials omitted. Full per-group JSON remains on instance data disk; absent values are not reconstructed."
+}
