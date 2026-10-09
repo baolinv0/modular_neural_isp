@@ -253,10 +253,16 @@ def _load(record, device='cpu'):
     return _to_device(torch.load(record['path'], map_location='cpu', weights_only=True), device)
 
 
-def _inputs(record, features):
+def _inputs(record, features, clip_risk_tolerance=None):
     count = features.shape[0]
+    mask = torch.ones(1, count, dtype=torch.bool, device=features.device)
+    if clip_risk_tolerance is not None:
+        from .learned_policy import preview_clipping_guard
+        mask, _ = preview_clipping_guard(record['previews'][None], record['state'][None],
+            features[None], torch.tensor([record['rule_index']], device=features.device),
+            tolerance=clip_risk_tolerance)
     return (record['previews'][None], record['state'][None], features[None],
-            torch.ones(1, count, dtype=torch.bool, device=features.device))
+            mask)
 
 
 def _render(record, tm, noise_index, candidate_indices):
@@ -292,7 +298,7 @@ def _teacher_costs(metadata, tm, chunk_size):
     return costs
 
 
-def _warmstart(policy, tm, train, val, features, *, epochs, lr, seed, chunk_size):
+def _warmstart(policy, tm, train, val, features, *, epochs, lr, seed, chunk_size, clip_risk_tolerance=None):
     from .learned_policy import warmstart_loss
 
     if epochs == 0:
@@ -308,7 +314,7 @@ def _warmstart(policy, tm, train, val, features, *, epochs, lr, seed, chunk_size
         losses = []
         for index in order:
             record = _load(train[int(index)], features.device)
-            args = _inputs(record, features)
+            args = _inputs(record, features, clip_risk_tolerance)
             scores = policy(*args)
             loss = warmstart_loss(scores, teacher[record['scene_id']], args[-1])
             optimizer.zero_grad(set_to_none=True)
@@ -320,15 +326,17 @@ def _warmstart(policy, tm, train, val, features, *, epochs, lr, seed, chunk_size
         with torch.no_grad():
             policy.eval()
             val_cost = float(np.mean([float(teacher[row['scene_id']][0,
-                int(policy(*_inputs(_load(row, features.device), features)).argmax(-1))]) for row in val]))
+                int(policy(*_inputs(_load(row, features.device), features, clip_risk_tolerance)).argmax(-1))]) for row in val]))
         history.append({'epoch': epoch + 1, 'train_loss': float(np.mean(losses)), 'val_cost': val_cost})
         if val_cost < best:
             best, selected, best_state = val_cost, epoch + 1, _state(policy)
     policy.load_state_dict(best_state)
     return {'history': history, 'selected_epoch': selected, 'optimizer_steps': steps,
             'seconds': time.perf_counter() - started,
-            'train_oracle_actions': dict(Counter(str(int(teacher[row['scene_id']].argmin())) for row in train)),
-            'val_oracle_actions': dict(Counter(str(int(teacher[row['scene_id']].argmin())) for row in val)),
+            'train_oracle_actions': dict(Counter(str(int(teacher[row['scene_id']].masked_fill(
+                ~_inputs(_load(row, features.device), features, clip_risk_tolerance)[-1], torch.inf).argmin())) for row in train)),
+            'val_oracle_actions': dict(Counter(str(int(teacher[row['scene_id']].masked_fill(
+                ~_inputs(_load(row, features.device), features, clip_risk_tolerance)[-1], torch.inf).argmin())) for row in val)),
             'teacher': 'frozen initial TM costs; train scenes optimize, validation scenes select'}
 
 
@@ -338,7 +346,8 @@ def _mean_metrics(rows):
     return {key: float(np.mean([row[key] for row in rows])) for key in keys if all(key in row for row in rows)}
 
 
-def _evaluate(metadata, policy, tm, features, *, learned_ae, output=None, evaluation_split='test'):
+def _evaluate(metadata, policy, tm, features, *, learned_ae, output=None, evaluation_split='test',
+              clip_risk_tolerance=None):
     policy.eval()
     tm.eval()
     rows = []
@@ -346,7 +355,8 @@ def _evaluate(metadata, policy, tm, features, *, learned_ae, output=None, evalua
     with torch.no_grad():
         for scene_index, row in enumerate(metadata):
             record = _load(row, features.device)
-            idx = int(policy(*_inputs(record, features)).argmax(-1)) if learned_ae else record['rule_index']
+            args = _inputs(record, features, clip_risk_tolerance)
+            idx = int(policy(*args).argmax(-1)) if learned_ae else record['rule_index']
             repeats, predictions = [], []
             for n, noise_seed in enumerate(record['noise_seeds']):
                 prediction, metrics = _render(record, tm, n, [idx])
@@ -379,6 +389,7 @@ def _train_group(group, scheme, initial, metadata, features, output, *, epochs, 
     from .learned_tone import ConditionalToneMapper
 
     learned_ae, learned_tm = group[-2] == '1', group[-1] == '1'
+    clip_risk_tolerance = initial.get('clip_risk_tolerance')
     _seed(seed)
     policy = TemporalExposurePolicy(**initial['policy_kwargs']).to(features.device)
     policy.load_state_dict(initial['policy_state'])
@@ -402,7 +413,8 @@ def _train_group(group, scheme, initial, metadata, features, output, *, epochs, 
         torch.cuda.synchronize(features.device)
         torch.cuda.reset_peak_memory_stats(features.device)
     started = time.perf_counter()
-    baseline_val = _evaluate(splits['val'], policy, tm, features, learned_ae=learned_ae)['means']['cost']
+    baseline_val = _evaluate(splits['val'], policy, tm, features, learned_ae=learned_ae,
+                             clip_risk_tolerance=clip_risk_tolerance)['means']['cost']
     best, selected_epoch = baseline_val, 0
 
     def checkpoint(epoch):
@@ -412,7 +424,8 @@ def _train_group(group, scheme, initial, metadata, features, output, *, epochs, 
                 'selected_on': 'validation cost; test scenes excluded',
                 'plan_features': features.detach().cpu().clone(), 'sensor': initial['sensor'], 'plans': initial['plans'],
                 'tm_weights': str(weights) if weights else None, 'render_ev': initial['render_ev'],
-                'acquisition': initial.get('acquisition'), 'manifest_kind': initial.get('manifest_kind')}
+                'acquisition': initial.get('acquisition'), 'manifest_kind': initial.get('manifest_kind'),
+                'clip_risk_tolerance': clip_risk_tolerance}
 
     torch.save(checkpoint(0), output / 'selected.pt')
     for epoch in range(epochs if optimizer is not None else 0):
@@ -427,7 +440,7 @@ def _train_group(group, scheme, initial, metadata, features, output, *, epochs, 
             for repeat in range(len(record['noise_seeds'])):
                 optimizer.zero_grad(set_to_none=True)
                 if learned_ae:
-                    args = _inputs(record, features)
+                    args = _inputs(record, features, clip_risk_tolerance)
                     scores = policy(*args)
                     # Lazy rendering retains at most one chunk graph. Frozen
                     # weights and cached inputs already have no TM gradients.
@@ -452,7 +465,8 @@ def _train_group(group, scheme, initial, metadata, features, output, *, epochs, 
                 steps['ae'] += int(learned_ae)
                 steps['tm'] += int(learned_tm)
                 losses.append(value)
-        validation = _evaluate(splits['val'], policy, tm, features, learned_ae=learned_ae)['means']['cost']
+        validation = _evaluate(splits['val'], policy, tm, features, learned_ae=learned_ae,
+                               clip_risk_tolerance=clip_risk_tolerance)['means']['cost']
         history.append({'epoch': epoch + 1, 'train_expected_cost': float(np.mean(losses)), 'val_cost': validation})
         if validation < best:
             best, selected_epoch = validation, epoch + 1
@@ -477,7 +491,7 @@ def _train_group(group, scheme, initial, metadata, features, output, *, epochs, 
     tm.load_state_dict(selected['tm_state'])
     runtime['checkpoint_reload_device'] = str(next(tm.parameters()).device)
     evaluation = _evaluate(splits[evaluation_split], policy, tm, features, learned_ae=learned_ae,
-                           output=output, evaluation_split=evaluation_split)
+                           output=output, evaluation_split=evaluation_split, clip_risk_tolerance=clip_risk_tolerance)
     runtime.update(evaluation['runtime'])
     runtime['policy_parameter_device'] = str(next(policy.parameters()).device)
     if features.is_cuda:
@@ -496,7 +510,8 @@ def _train_group(group, scheme, initial, metadata, features, output, *, epochs, 
 
 def run_factorial(manifest, output, *, scheme='both', epochs=10, warmup=5, seeds=(0,),
                   noise_seeds=(0, 1), threads=2, prepare_threads=None, candidate_chunk_size=4, ae_lr=1e-3,
-                  tm_lr=3e-4, weights=None, render_ev=0., device='cpu', evaluation_split='test'):
+                  tm_lr=3e-4, weights=None, render_ev=0., device='cpu', evaluation_split='test',
+                  clip_risk_tolerance=None):
     """Execute four controlled groups from v1 scenes or a v2 RAW archive.
 
     Archive noise repeats, target intent, and physical plans are fixed inputs;
@@ -506,6 +521,8 @@ def run_factorial(manifest, output, *, scheme='both', epochs=10, warmup=5, seeds
         raise ValueError('scheme must be apple, samsung or both')
     if evaluation_split not in ('val', 'test'):
         raise ValueError('evaluation_split must be val or test')
+    if clip_risk_tolerance is not None and (not np.isfinite(clip_risk_tolerance) or not 0 <= clip_risk_tolerance <= 1):
+        raise ValueError('clip risk tolerance must be finite in [0,1]')
     device = torch.device(device)
     if device.type not in ('cpu', 'cuda'):
         raise ValueError('device must be cpu or cuda')
@@ -564,7 +581,8 @@ def run_factorial(manifest, output, *, scheme='both', epochs=10, warmup=5, seeds
                          'noise_seeds': list(noise_seeds), 'threads': threads, 'prepare_threads': prepare_threads,
                          'candidate_chunk_size': candidate_chunk_size, 'ae_lr': ae_lr, 'tm_lr': tm_lr,
                          'render_ev': render_ev, 'weights': str(weights) if weights else 'shipped style 0',
-                         'device': str(device), 'evaluation_split': evaluation_split},
+                         'device': str(device), 'evaluation_split': evaluation_split,
+                         'clip_risk_tolerance': clip_risk_tolerance},
               'scene_counts': {split: sum(row['split'] == split for row in scene_rows) for split in ('train', 'val', 'test')},
               'source_kinds': dict(Counter(row['source_kind'] for row in scene_rows)),
               'evidence': 'simulation protocol experiment; real sensor calibration and real captures remain required'}
@@ -595,12 +613,14 @@ def run_factorial(manifest, output, *, scheme='both', epochs=10, warmup=5, seeds
             tm = ConditionalToneMapper(name, weights=weights, trainable=False).to(device).eval()
             warm = _warmstart(policy, tm, [r for r in records if r['split'] == 'train'],
                               [r for r in records if r['split'] == 'val'], features,
-                              epochs=warmup, lr=ae_lr, seed=int(seed), chunk_size=candidate_chunk_size)
+                              epochs=warmup, lr=ae_lr, seed=int(seed), chunk_size=candidate_chunk_size,
+                              clip_risk_tolerance=clip_risk_tolerance)
             initial = {'policy_kwargs': kwargs, 'policy_state': _state(policy), 'tm_state': _state(tm),
                        'warmstart': warm, 'sensor': sensor.to_dict() if archive is None else archive['sensor'],
                        'plans': cache['plans'],
                        'render_ev': render_ev, 'manifest_kind': payload.get('kind'),
-                       'acquisition': None if archive is None else archive['acquisition']}
+                       'acquisition': None if archive is None else archive['acquisition'],
+                       'clip_risk_tolerance': clip_risk_tolerance}
             seed_dir = output / name / f'seed_{seed}'
             seed_dir.mkdir(parents=True, exist_ok=True)
             torch.save(initial, seed_dir / 'initial.pt')

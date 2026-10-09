@@ -102,6 +102,7 @@ class JointCaptureAlgorithm:
         algorithm = cls(data["scheme"], sensor, tm=tm, policy=policy, plans=plans,
                         acquisition=acquisition)
         algorithm.checkpoint_render_ev = float(data.get("render_ev", 0.))
+        algorithm.clip_risk_tolerance = data.get('clip_risk_tolerance')
         algorithm.checkpoint_group = data.get("group")
         algorithm.checkpoint_manifest_kind = data.get("manifest_kind")
         return algorithm
@@ -139,6 +140,16 @@ class JointCaptureAlgorithm:
             observed = previews.to(parameter)
             effective_state = state.to(parameter)
             candidates = plan_features(self.plans, self.sensor).to(parameter)
+            tolerance = getattr(self, 'clip_risk_tolerance', None)
+            if tolerance is not None:
+                from .learned_policy import preview_clipping_guard
+                legal_indices = feasible_mask.nonzero(as_tuple=True)[0].tolist()
+                local = rule_plan_index(previews, state.to(previews),
+                                       [self.plans[i] for i in legal_indices], self.sensor)
+                guard, _ = preview_clipping_guard(observed[None], effective_state[None],
+                    candidates[None], torch.tensor([legal_indices[local]], device=parameter.device),
+                    tolerance=tolerance)
+                feasible_mask = feasible_mask.to(parameter.device) & guard[0]
             scores = self.policy(observed[None], effective_state[None], candidates[None],
                                  feasible_mask.to(parameter.device)[None])
             index = int(scores.argmax(-1).item())

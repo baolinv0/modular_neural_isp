@@ -30,6 +30,8 @@ def main(argv=None):
     parser.add_argument('--candidate-chunk-size', type=int, default=4)
     parser.add_argument('--ae-lr', type=float, default=1e-3)
     parser.add_argument('--tm-lr', type=float, default=3e-4)
+    parser.add_argument('--clip-risk-tolerance', type=float,
+                        help='optional preview-estimated all-frame clipping excess over rule AE; default disabled')
     parser.add_argument('--weights', help='Modular Neural ISP checkpoint; defaults to shipped style 0')
     parser.add_argument('--render-ev', type=float, default=0.)
     parser.add_argument('--device', default='cpu', help='training/render device; capture preparation stays CPU')

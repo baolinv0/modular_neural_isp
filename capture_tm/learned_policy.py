@@ -25,6 +25,40 @@ def _validate_mask(mask: Tensor, shape: tuple[int, int], device: torch.device) -
         raise ValueError("every observation needs at least one feasible candidate")
 
 
+def preview_clipping_guard(previews: Tensor, state: Tensor, features: Tensor,
+                           rule_indices: Tensor, *, tolerance: float = .01):
+    """Causal *estimated* all-frame clipping risk relative to the rule plan.
+
+    Latest sensor-linear preview and actual EV project each candidate slot.
+    Count a channel/pixel only when ALL slots exceed 98% ADC headroom. A
+    candidate may exceed the reference risk by at most ``tolerance``. This is
+    a static-scene, linear-response proxy, not a calibrated safety guarantee:
+    clipped previews, motion, noise, full-well changes and unseen highlights
+    limit its accuracy. No candidate measurement or target is an input.
+    """
+    if not math.isfinite(tolerance) or not 0 <= tolerance <= 1:
+        raise ValueError('tolerance must be finite in [0,1]')
+    if (previews.ndim != 5 or previews.shape[2] != 3 or state.shape != (*previews.shape[:2], 3)
+            or features.ndim != 4 or features.shape[0] != len(previews)
+            or features.shape[2] not in (1, 3) or features.shape[3] != 3):
+        raise ValueError('expected previews [B,T,3,H,W], state [B,T,3], features [B,K,N,3]')
+    if (rule_indices.shape != (len(previews),) or rule_indices.dtype != torch.long
+            or (rule_indices < 0).any() or (rule_indices >= features.shape[1]).any()):
+        raise ValueError('rule indices must identify one reference per observation')
+    if any(t.device != previews.device for t in (state, features, rule_indices)):
+        raise ValueError('guard inputs must share a device')
+    if (not all(torch.isfinite(t).all() for t in (previews, state, features))
+            or (previews < 0).any() or (previews > 1).any()):
+        raise ValueError('guard observations must be finite and bounded')
+    ev_delta = features.sum(-1) - state[:, -1].sum(-1)[:, None, None]
+    projected = previews[:, -1, None, None] * torch.exp2(ev_delta[..., None, None, None].clamp(-32, 32))
+    risk = (projected >= .98).all(2).float().mean((2, 3, 4))
+    reference = risk.gather(1, rule_indices[:, None])
+    mask = risk <= reference + tolerance
+    mask.scatter_(1, rule_indices[:, None], True)
+    return mask, risk
+
+
 class TemporalExposurePolicy(nn.Module):
     """Score ordered single-frame actions or three-frame physical capture plans.
 
