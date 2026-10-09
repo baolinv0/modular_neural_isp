@@ -192,3 +192,8 @@ NPZ 包含 `previews` 和 `capture_state`。观察帧 k 完成后，提交 tick 
 测试覆盖光子/gain 分离、噪声统计、曝光运动积分、饱和来源、HDR/负读噪声、时间平移、分组隔离、精确 RGB16、curve/EV/意图、真实冻结权重、非法动作、容量匹配、延迟账本、checkpoint 身份和数据→训练→推理。另由独立 AE/TM/ISP reviewer 审核，发现与修复见 [验证记录](../docs/capture_tm/VALIDATION.md)，相关原始依据见 [来源映射](../docs/capture_tm/SOURCES.md)。
 
 CPU synthetic/source-proxy 运行证明软件可运行。真实 iPhone/Samsung 画质收益、曝光 metadata 的增益、跨 camera 泛化、native Bayer ISP、学到的 denoising、完整多帧闭环与延迟鲁棒性仍需真实数据和标定实验；当前没有这些结果，也不把专利启发机制或参考论文架构作为新颖性结论。
+
+
+## 2026-10-09 失败诊断与 Bayer 复测
+
+已完成因果预览风险约束、72 次八组消融训练、物理反例和后验解析对照；当前未建立独立联合收益。新增结果仅为 val 开发诊断，原结果不变。见 [诊断报告](../docs/capture_tm/JOINT_FAILURE_DIAGNOSIS_20261009.md)。

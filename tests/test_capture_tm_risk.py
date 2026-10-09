@@ -70,6 +70,18 @@ def test_guarded_checkpoint_reloads_same_causal_selection(tmp_path):
         assert _inputs(record, features, .01)[-1][0, selected]
 
 
+def test_guarded_learned_hdr_accepts_external_asymmetric_only_mask():
+    from capture_tm.joint_algorithm import JointCaptureAlgorithm
+    from capture_tm.learned_policy import TemporalExposurePolicy
+    from capture_tm.types import SensorProfile
+    algorithm = JointCaptureAlgorithm('samsung', SensorProfile(), policy=TemporalExposurePolicy(width=4))
+    algorithm.clip_risk_tolerance = .01
+    feasible = torch.zeros(len(algorithm.plans), dtype=torch.bool)
+    feasible[14] = True  # no fixed +/-2 bracket in this driver-feasible set
+    result = algorithm.select(torch.full((3, 3, 16, 16), .2), torch.zeros(3, 3), feasible)
+    assert result['selected_index'] == 14
+
+
 @pytest.mark.parametrize('value', [-.01, 1.1, float('nan')])
 def test_guard_rejects_invalid_tolerance(value):
     from capture_tm.learned_policy import preview_clipping_guard

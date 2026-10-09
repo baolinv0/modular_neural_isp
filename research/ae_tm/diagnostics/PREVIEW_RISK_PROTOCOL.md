@@ -52,3 +52,15 @@ with paired scene intervals. Validation CIs are descriptive, not confirmatory.
 After this diagnostic, freeze any next protocol before a new independent test.
 Challenge with information-first sequential AE+TM, a sufficiently trained stronger
 TM-only baseline and matched HDR bank before claiming an independent joint benefit.
+
+## Post-hoc mechanism audits (not part of the frozen training protocol)
+
+After the 72 runs, add a deterministic censored-preview witness and a known-target
+analytic renderer control, without further fitting or threshold tuning. The latter
+applies the existing target-generating curve to the measured exposure-normalized
+image, never GT/latent input. Evaluate rule AE and frozen guarded AE-only captures.
+Knowing the target curve is a structural advantage; this is not a capacity-matched
+trained or expert-style baseline. Keep Samsung's contrary highlight outcome.
+The witness uses noise-free final captures to isolate clipping, not quality.
+Both audits use development validation only. Full findings and limitations:
+[diagnosis](../../../docs/capture_tm/JOINT_FAILURE_DIAGNOSIS_20261009.md).

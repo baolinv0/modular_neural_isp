@@ -144,8 +144,19 @@ class JointCaptureAlgorithm:
             if tolerance is not None:
                 from .learned_policy import preview_clipping_guard
                 legal_indices = feasible_mask.nonzero(as_tuple=True)[0].tolist()
-                local = rule_plan_index(previews, state.to(previews),
-                                       [self.plans[i] for i in legal_indices], self.sensor)
+                try:
+                    local = rule_plan_index(previews, state.to(previews),
+                                           [self.plans[i] for i in legal_indices], self.sensor)
+                except ValueError as error:
+                    if 'rule HDR meter requires' not in str(error):
+                        raise
+                    # A camera driver may expose only asymmetric HDR plans.
+                    # The stock rule has no reference in that subset; choose
+                    # its lowest predicted clipping risk as the safe anchor.
+                    _, risk = preview_clipping_guard(observed[None], effective_state[None],
+                        candidates[None], torch.tensor([legal_indices[0]], device=parameter.device),
+                        tolerance=tolerance)
+                    local = int(risk[0, legal_indices].argmin())
                 guard, _ = preview_clipping_guard(observed[None], effective_state[None],
                     candidates[None], torch.tensor([legal_indices[local]], device=parameter.device),
                     tolerance=tolerance)

@@ -27,18 +27,28 @@ def save(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + '\n')
 
 
+def mean_present(values):
+    values = [value for value in values if value is not None]
+    return float(np.mean(values)) if values else None
+
+
 def interval(rows_a, rows_b, metric):
     # Average noise first (already in rows), then training seeds within scene.
     def values(rows):
         out = {}
         for r in rows:
+            if ((metric.startswith('bright_') or metric == 'highlight_mse') and not r['bright_pixel_count']) or r[metric] is None:
+                continue
             out.setdefault(r['scene_id'], []).append(r[metric])
         return {k: np.mean(v) for k, v in out.items()}
     a, b = values(rows_a), values(rows_b)
     assert a.keys() == b.keys()
     d = np.array([a[k] - b[k] for k in sorted(a)])
+    if not len(d):
+        return {'mean': None, 'ci95_descriptive': None, 'independent_scenes': 0}
     ids = np.random.default_rng(0).integers(len(d), size=(2000, len(d)))
     return {'mean': float(d.mean()), 'ci95_descriptive': np.quantile(d[ids].mean(1), [.025, .975]).tolist(),
+            'independent_scenes': len(d),
             'unit': 'validation scene; noise and training seeds averaged; NOT confirmatory'}
 
 
@@ -58,7 +68,7 @@ def enrich(result, cache_rows, raw_rows, model, features, tolerance):
         delta = normalized - physical['sharp_reference'][None]
         bright = (physical['target'] * physical['target'].new_tensor([.2126, .7152, .0722])[:, None, None]).sum(0) > .8
         row['bright_pixel_count'] = int(bright.sum())
-        row['bright_radiance_mse'] = float(delta[..., bright].square().mean()) if bright.any() else 0.
+        row['bright_radiance_mse'] = float(delta[..., bright].square().mean()) if bright.any() else None
         row['analytic_capture_display_mse'] = float((fixed_target(normalized) - physical['target'][None]).square().mean())
         with torch.no_grad():
             if model.policy is not None:
@@ -72,13 +82,38 @@ def enrich(result, cache_rows, raw_rows, model, features, tolerance):
                 adjacent = bright[..., 1:] & bright[..., :-1] if axis == -1 else bright[1:] & bright[:-1]
                 if adjacent.any():
                     gradient_errors.append(torch.diff(d, dim=axis)[..., adjacent].abs().mean())
-            row['bright_detail_mae'] = float(torch.stack(gradient_errors).mean()) if gradient_errors else 0.
+            row['bright_detail_mae'] = float(torch.stack(gradient_errors).mean()) if gradient_errors else None
+            all_metrics = [_render(record, model.tm, n, range(record['num_plans']))[1]
+                           for n in range(len(record['noise_seeds']))]
+            costs = torch.stack([m['cost'] for m in all_metrics]).mean(0)
+            mses = torch.stack([m['mse'] for m in all_metrics]).mean(0)
+            feasible = _inputs(record, features, tolerance)[-1][0]
+            if model.policy is None:
+                probabilities = torch.zeros_like(costs)
+                probabilities[idx] = 1.
+            row['selected_tm_costs'] = costs.tolist()
+            row['selected_tm_mses'] = mses.tolist()
+            row['feasible_candidates'] = feasible.tolist()
+            row['cost_oracle_action'] = int(costs.masked_fill(~feasible, torch.inf).argmin())
+            row['cost_oracle'] = float(costs[feasible].min())
+            row['cost_regret'] = float(costs[idx] - costs[feasible].min())
+            row['mse_regret'] = float(mses[idx] - mses[feasible].min())
+            row['expected_cost'] = float((costs * probabilities).sum())
         row['psnr'] = -10 * math.log10(max(row['mse'], 1e-12))
     keys = ['native_all_frame_saturation', 'bright_radiance_mse', 'analytic_capture_display_mse',
             'bright_detail_mae', 'psnr', 'predicted_all_frame_clip', 'guard_candidates',
-            'policy_soft_entropy', 'policy_max_probability']
-    result['means'].update({k: float(np.mean([r[k] for r in result['per_scene']])) for k in keys
+            'policy_soft_entropy', 'policy_max_probability', 'cost_oracle', 'cost_regret', 'mse_regret', 'expected_cost']
+    result['means'].update({k: mean_present([r[k] for r in result['per_scene']]) for k in keys
                             if all(k in r for r in result['per_scene'])})
+    bright_rows = [r for r in result['per_scene'] if r['bright_pixel_count']]
+    result['means']['highlight_mse_valid_regions'] = float(np.mean([r['highlight_mse'] for r in bright_rows])) if bright_rows else None
+    result['valid_region_scene_counts'] = {'bright': len(bright_rows), 'all': len(result['per_scene'])}
+    common = np.array([r['feasible_candidates'] for r in result['per_scene']]).all(0)
+    matrix = np.array([r['selected_tm_costs'] for r in result['per_scene']])
+    constant = np.where(common, matrix.mean(0), np.inf)
+    result['same_tm_best_constant'] = {'action': int(constant.argmin()), 'cost': float(constant.min()),
+                                     'common_feasible_actions': int(common.sum())} if common.any() else None
+    result['same_tm_oracle_actions'] = dict(Counter(str(r['cost_oracle_action']) for r in result['per_scene']))
     actions = Counter(r['action_index'] for r in result['per_scene'])
     p = np.array(list(actions.values())) / len(result['per_scene'])
     result['hard_action_modal_share'] = float(p.max())
@@ -114,6 +149,63 @@ def candidate_audit(cache_rows, raw_rows, scheme):
             'val_context_oracle_cost': float(costs.min(1).mean())}
 
 
+def refresh_existing(root, manifest):
+    """Recompute diagnostics from saved models; no optimizer or checkpoint changes."""
+    torch.set_num_threads(1)
+    root = Path(root).resolve()
+    archive = load_acquisition_manifest(manifest, splits={'train', 'val'})
+    sensor = SensorProfile.from_dict(archive['sensor'])
+    config = json.loads((root / 'config.json').read_text())
+    old = json.loads((root / 'summary.json').read_text())
+    backup = root / 'summary_before_reporting_review.json'
+    if not backup.exists():
+        save(backup, old)
+    summary = {'config': config, 'schemes': {}, 'seconds': old.get('seconds'),
+        'evidence': 'development validation; simulated Bayer only; not new holdout',
+        'reporting_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
+        'reporting_corrections': ['exclude empty bright regions from dedicated region means/CIs',
+                                 'same-TM feasible oracle, best constant and regret from saved models']}
+    for scheme, prefix in [('apple', 'A'), ('samsung', 'S')]:
+        cache = json.loads((root / scheme / 'cache/cache.json').read_text())
+        val = [r for r in cache['records'] if r['split'] == 'val']
+        raw = archive['schemes'][scheme]['records']
+        plans = [CapturePlan(tuple(CaptureAction(**a) for a in r['actions']), tuple(r['centers_s'])) for r in cache['plans']]
+        features = plan_features(plans, sensor)
+        groups = {}
+        for variant in ('original', 'guarded', 'guarded_no_warmup', 'inference_guard_only'):
+            groups[variant] = {}
+            for suffix in ('00', '10', '01', '11'):
+                if variant == 'inference_guard_only' and suffix[0] != '1':
+                    continue
+                group, runs = prefix + suffix, []
+                for seed in config['seeds']:
+                    source = 'original' if variant == 'inference_guard_only' else variant
+                    directory = root / scheme / source / f'seed_{seed}' / group
+                    name = 'inference_guard_only.json' if variant == 'inference_guard_only' else 'diagnostic_evaluation.json'
+                    result = json.loads((directory / name).read_text())
+                    model = JointCaptureAlgorithm.from_checkpoint(directory / 'selected.pt')
+                    tolerance = None if variant == 'original' else .01
+                    model.clip_risk_tolerance = tolerance
+                    result = enrich(result, val, raw, model, features, tolerance)
+                    save(directory / name, result)
+                    runs.append(result)
+                rows = [dict(row, training_seed=run['seed']) for run in runs for row in run['per_scene']]
+                means = {k: mean_present([run['means'][k] for run in runs]) for k in runs[0]['means']}
+                groups[variant][group] = {'means': means, 'per_scene': rows,
+                    'valid_region_scene_counts': runs[0]['valid_region_scene_counts'],
+                    'seed_actions': [{k: run[k] for k in ('seed', 'actions', 'action_count', 'hard_action_modal_share',
+                        'hard_action_entropy', 'same_tm_best_constant', 'same_tm_oracle_actions')} for run in runs]}
+        metrics = ('mse', 'cost', 'detail_mae', 'highlight_mse', 'missing_fraction', 'radiance_mse',
+                   'native_all_frame_saturation', 'bright_radiance_mse', 'bright_detail_mae', 'analytic_capture_display_mse')
+        contrasts = {variant: {metric: interval(groups[variant][prefix+'11']['per_scene'],
+            groups['original'][prefix+'01']['per_scene'], metric) for metric in metrics} for variant in groups}
+        audit = json.loads((root / scheme / 'candidate_audit.json').read_text())
+        summary['schemes'][scheme] = {'groups': groups, 'joint_minus_tm': contrasts,
+                                     'candidate_audit_summary': {k: v for k, v in audit.items() if k != 'per_scene'}}
+    save(root / 'summary.json', summary)
+    print('Refreshed diagnostics without retraining:', root)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--manifest', required=True)
@@ -122,8 +214,12 @@ def main():
     p.add_argument('--warmup', type=int, default=10)
     p.add_argument('--seeds', default='0,1,2')
     p.add_argument('--prepare-threads', type=int, default=4)
+    p.add_argument('--refresh-existing', action='store_true', help='recompute reporting diagnostics from saved checkpoints')
     args = p.parse_args()
     root = Path(args.output).resolve()
+    if args.refresh_existing:
+        refresh_existing(root, args.manifest)
+        return
     if root.exists():
         raise FileExistsError('choose a new output directory')
     root.mkdir(parents=True)
@@ -198,12 +294,15 @@ def main():
             groups[variant] = {}
             for group, runs in result.items():
                 rows = [dict(row, training_seed=run['seed']) for run in runs for row in run['per_scene']]
-                means = {k: float(np.mean([run['means'][k] for run in runs])) for k in runs[0]['means']}
+                means = {k: mean_present([run['means'][k] for run in runs]) for k in runs[0]['means']}
                 groups[variant][group] = {'means': means, 'per_scene': rows,
                     'seed_actions': [{k: run[k] for k in ('seed', 'actions', 'action_count', 'hard_action_modal_share', 'hard_action_entropy')} for run in runs]}
         for variant in ('guarded', 'guarded_no_warmup'):
             for suffix in ('00', '01'):
-                assert groups[variant][prefix + suffix]['means'] == groups['original'][prefix + suffix]['means']
+                invariant = ('cost', 'mse', 'subject_luma_mae', 'detail_mae', 'missing_fraction',
+                             'radiance_mse', 'native_all_frame_saturation')
+                assert all(groups[variant][prefix + suffix]['means'][k] ==
+                           groups['original'][prefix + suffix]['means'][k] for k in invariant)
         contrasts = {variant: {metric: interval(groups[variant][prefix+'11']['per_scene'], groups['original'][prefix+'01']['per_scene'], metric)
             for metric in ('mse', 'cost', 'detail_mae', 'highlight_mse', 'missing_fraction', 'radiance_mse', 'native_all_frame_saturation')}
             for variant in groups}

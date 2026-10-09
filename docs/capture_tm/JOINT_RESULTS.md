@@ -78,3 +78,8 @@
 运行命令见 [capture_tm/README.md](../../capture_tm/README.md)。当前代码可一次运行 `--scheme both`；本次 Apple 与 Samsung 分别执行，后者在机制修正后首次训练。冻结系数缓存耗时 Apple 337.11 秒、Samsung 978.74 秒；训练在 CPU 单线程运行。Python 3.12.14，PyTorch 2.5.1+cpu，NumPy 1.26.4。
 
 随交付压缩包保留 40 个场景的 manifest/数组、24 个验证集选择的 checkpoint、逐组训练与评测日志、输出图片及推理一致性记录。为控制体积，不含可重建的候选缓存和末轮 checkpoint；所选 checkpoint 已保存完整模型状态。原始 ISP 权重仍从仓库按其许可获取。
+
+
+## 2026-10-09 失败诊断与 Bayer 复测
+
+已完成因果预览风险约束、72 次八组消融训练、物理反例和后验解析对照；当前未建立独立联合收益。新增结果仅为 val 开发诊断，原结果不变。见 [诊断报告](JOINT_FAILURE_DIAGNOSIS_20261009.md)。
