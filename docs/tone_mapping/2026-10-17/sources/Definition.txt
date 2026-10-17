@@ -1,0 +1,1 @@
+背景：对前置摄像头，大部分都是拍人，baseline 为modular neural image signal processing，文中采用s24 训练，应用到iPhone 上，我们反过来，采集iphone 成对数据训练得到baseline，然后应用到s24上，但是因为cross camera 传感器差异，在s24上的表现亮度、色调，look not so good，方案，采用同一场景拍摄的不对其的成对s24，iphone，s24-》baseline -》s24 pred，参考同一场景的iphone风格得到对应s24像素级别对应的伪GT，然后采用该伪GT微调模型；生成伪GT的方案：GGT-100K方案，有参考图像方案
