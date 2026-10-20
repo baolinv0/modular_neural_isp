@@ -1,0 +1,8 @@
+{
+  "cfa_pattern": "RGGB",
+  "spatial_downsample": 1,
+  "readout_s": 0.001,
+  "rolling_shutter_s": 0.0,
+  "input_stage": "post_optics",
+  "psf_kernels": null
+}

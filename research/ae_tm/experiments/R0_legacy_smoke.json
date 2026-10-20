@@ -1,0 +1,67 @@
+{
+  "id": "R0_legacy_smoke",
+  "timeout_seconds": 1800,
+  "purpose": "Optional historical toy simulator smoke. NOT S24, CUDA validation or quality evidence.",
+  "steps": [
+    {
+      "name": "toy_acquisition",
+      "argv": [
+        "{python}",
+        "-m",
+        "capture_tm.pipeline_cli",
+        "demo",
+        "--output",
+        "{run_dir}/toy",
+        "--scenes",
+        "12",
+        "--size",
+        "16",
+        "--scheme",
+        "apple",
+        "--noise-seeds",
+        "0",
+        "--seed",
+        "2026",
+        "--threads",
+        "1"
+      ]
+    },
+    {
+      "name": "validate_archive",
+      "argv": [
+        "{python}",
+        "-m",
+        "capture_tm.pipeline_cli",
+        "validate",
+        "--manifest",
+        "{run_dir}/toy/acquisition/manifest.json"
+      ]
+    },
+    {
+      "name": "historical_four_groups",
+      "argv": [
+        "{python}",
+        "-m",
+        "capture_tm.joint_cli",
+        "--manifest",
+        "{run_dir}/toy/acquisition/manifest.json",
+        "--output",
+        "{run_dir}/study",
+        "--scheme",
+        "apple",
+        "--epochs",
+        "1",
+        "--warmup",
+        "1",
+        "--seeds",
+        "0",
+        "--noise-seeds",
+        "0",
+        "--threads",
+        "1",
+        "--prepare-threads",
+        "1"
+      ]
+    }
+  ]
+}

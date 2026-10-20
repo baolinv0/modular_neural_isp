@@ -1,0 +1,8 @@
+# Upstream torch remains pinned by ../requirements.txt; CPU wheels can be used.
+torch>=2.5.1
+numpy>=1.26,<3
+Pillow>=10
+PyYAML>=6
+pypng>=0.20220715.0
+# Optional DNG decoder: rawpy>=0.23
+# Verification: pytest>=8

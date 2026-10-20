@@ -1,0 +1,3 @@
+# Optional HDR source codecs. Core NPY/NPZ pipeline uses requirements.txt only.
+OpenEXR>=3
+imageio[tifffile]>=2.31

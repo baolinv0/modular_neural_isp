@@ -1,0 +1,3791 @@
+{
+  "config": {
+    "manifest": "runs/capture_tm/risk-diagnostic/data/acquisition/manifest.json",
+    "output": "runs/capture_tm/risk-diagnostic/study",
+    "epochs": 10,
+    "warmup": 10,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "prepare_threads": 4,
+    "clip_tolerance": 0.01,
+    "threshold": 0.98,
+    "evaluation_split": "val",
+    "data_seed": 2026,
+    "noise_seeds": [
+      0,
+      1
+    ],
+    "torch": "2.5.1+cpu",
+    "numpy": "1.26.4",
+    "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+    "git_commit": "115b1330ffdc02d7b647d687015b44aa95139b66",
+    "git_dirty": false,
+    "ae_lr": 0.001,
+    "tm_lr": 0.0003,
+    "candidate_chunk_size": 4
+  },
+  "seconds": 1012.9143229809997,
+  "evidence": "development validation; simulated Bayer only; not new holdout",
+  "reporting_commit": "0aa8cb6791446113d229ba2b84d23d57e395e23c",
+  "reporting_corrections": [
+    "exclude empty bright regions from dedicated region means/CIs",
+    "same-TM feasible oracle, best constant and regret from saved models"
+  ],
+  "training_source_remote_commit": "5e5b01183a609fdc5624a113c3ab776efcc88859",
+  "schemes": {
+    "apple": {
+      "joint_minus_tm": {
+        "original": {
+          "mse": {
+            "mean": -0.006104529604878431,
+            "ci95_descriptive": [
+              -0.017543403240294235,
+              0.0030239415464166043
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "cost": {
+            "mean": -0.00910948472058711,
+            "ci95_descriptive": [
+              -0.03102297280105025,
+              0.009989117677711554
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "detail_mae": {
+            "mean": -0.004822397915025553,
+            "ci95_descriptive": [
+              -0.009511787502560765,
+              -0.00048513442112986624
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "highlight_mse": {
+            "mean": 0.128830009760956,
+            "ci95_descriptive": [
+              0.06509495185067257,
+              0.19256506767123938
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "missing_fraction": {
+            "mean": 0.3305460625560954,
+            "ci95_descriptive": [
+              0.06878153570287396,
+              0.6305969237626412
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "radiance_mse": {
+            "mean": 0.05969248129076732,
+            "ci95_descriptive": [
+              0.0067549255274570895,
+              0.11542094720693964
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "native_all_frame_saturation": {
+            "mean": 0.3404541015625,
+            "ci95_descriptive": [
+              0.075897216796875,
+              0.6318756103515623
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "bright_radiance_mse": {
+            "mean": 6.403930187225342,
+            "ci95_descriptive": [
+              6.385902404785156,
+              6.421957969665527
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "bright_detail_mae": {
+            "mean": 0.0047093260412414874,
+            "ci95_descriptive": [
+              0.00395613287885984,
+              0.005462519203623135
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "analytic_capture_display_mse": {
+            "mean": 0.012655002528845216,
+            "ci95_descriptive": [
+              0.0045792910514137475,
+              0.021488495880475966
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          }
+        },
+        "guarded": {
+          "mse": {
+            "mean": -0.00237212063075276,
+            "ci95_descriptive": [
+              -0.005394828060828633,
+              -0.00036886884699924847
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "cost": {
+            "mean": -0.004161926975939423,
+            "ci95_descriptive": [
+              -0.008274426494608635,
+              -0.0009750067256391046
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "detail_mae": {
+            "mean": 0.004152796308820445,
+            "ci95_descriptive": [
+              0.0014898581243566389,
+              0.006647010775244171
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "highlight_mse": {
+            "mean": -0.0012357106897979975,
+            "ci95_descriptive": [
+              -0.001295769276718298,
+              -0.001175652102877697
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "missing_fraction": {
+            "mean": -0.005859375077610214,
+            "ci95_descriptive": [
+              -0.012939453202610213,
+              0.0
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "radiance_mse": {
+            "mean": -0.07544753297649247,
+            "ci95_descriptive": [
+              -0.1663923058101015,
+              4.213196230011817e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "native_all_frame_saturation": {
+            "mean": -0.00830078125,
+            "ci95_descriptive": [
+              -0.018310546875,
+              0.0
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "bright_radiance_mse": {
+            "mean": -9.948419844110807,
+            "ci95_descriptive": [
+              -11.98464760184288,
+              -7.912192086378734
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "bright_detail_mae": {
+            "mean": 0.02101517810175816,
+            "ci95_descriptive": [
+              0.011072850475708641,
+              0.030957505727807682
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "analytic_capture_display_mse": {
+            "mean": -0.00011348918269504793,
+            "ci95_descriptive": [
+              -0.00030544121727871243,
+              4.388484139781208e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          }
+        },
+        "guarded_no_warmup": {
+          "mse": {
+            "mean": -0.0006826076763294016,
+            "ci95_descriptive": [
+              -0.0013667788656069506,
+              -0.0001501554755426102
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "cost": {
+            "mean": -0.001231831226808328,
+            "ci95_descriptive": [
+              -0.0022232061775866864,
+              -0.00033335786817284975
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "detail_mae": {
+            "mean": 0.0014834293009092403,
+            "ci95_descriptive": [
+              0.0005211734339051559,
+              0.002508347368954369
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "highlight_mse": {
+            "mean": -0.0005115711828693748,
+            "ci95_descriptive": [
+              -0.0005990277665356807,
+              -0.00042411459920306885
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "missing_fraction": {
+            "mean": -0.002034505237437164,
+            "ci95_descriptive": [
+              -0.004692925373092294,
+              0.0005967881879769266
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "radiance_mse": {
+            "mean": -0.030144793686001016,
+            "ci95_descriptive": [
+              -0.06046531879110262,
+              2.1763905048525586e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "native_all_frame_saturation": {
+            "mean": -0.0026448567708333335,
+            "ci95_descriptive": [
+              -0.006632486979166667,
+              0.0013020833333333333
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "bright_radiance_mse": {
+            "mean": -3.9754665593306218,
+            "ci95_descriptive": [
+              -3.994882533947626,
+              -3.9560505847136174
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "bright_detail_mae": {
+            "mean": 0.008066628438731035,
+            "ci95_descriptive": [
+              0.005617532258232437,
+              0.010515724619229633
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "analytic_capture_display_mse": {
+            "mean": -4.813498586978918e-05,
+            "ci95_descriptive": [
+              -0.00011287303641438484,
+              1.3529711092511817e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          }
+        },
+        "inference_guard_only": {
+          "mse": {
+            "mean": 0.0334227421869097,
+            "ci95_descriptive": [
+              0.00261574603682675,
+              0.07023416535230355
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "cost": {
+            "mean": 0.04412713974791889,
+            "ci95_descriptive": [
+              0.00466887510798794,
+              0.09013959524503054
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "detail_mae": {
+            "mean": -0.0008570148784201593,
+            "ci95_descriptive": [
+              -0.004868884995084954,
+              0.00256103093852289
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "highlight_mse": {
+            "mean": 0.0016526343921820317,
+            "ci95_descriptive": [
+              0.001122188599159319,
+              0.0021830801852047443
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "missing_fraction": {
+            "mean": 0.00044080944401988137,
+            "ci95_descriptive": [
+              -5.4253536897401304e-05,
+              0.0013902452240775651
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "radiance_mse": {
+            "mean": 9.99818500228844e-06,
+            "ci95_descriptive": [
+              1.1498398938634277e-07,
+              2.781092925943091e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "native_all_frame_saturation": {
+            "mean": 0.0009358723958333333,
+            "ci95_descriptive": [
+              -0.00012207031250000087,
+              0.002970377604166667
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "bright_radiance_mse": {
+            "mean": -5.801518758197233e-05,
+            "ci95_descriptive": [
+              -9.091695149798795e-05,
+              -2.5113423665956702e-05
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "bright_detail_mae": {
+            "mean": 0.0016379266356428453,
+            "ci95_descriptive": [
+              0.0015358837942282336,
+              0.001739969477057457
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "analytic_capture_display_mse": {
+            "mean": 8.600988318600372e-06,
+            "ci95_descriptive": [
+              3.479058492909332e-06,
+              1.4152208693000524e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          }
+        }
+      },
+      "candidate_audit_summary": {
+        "val_frozen_oracle_actions": {
+          "10": 4,
+          "11": 3,
+          "3": 1
+        },
+        "val_analytic_oracle_actions": {
+          "6": 4,
+          "7": 2,
+          "0": 2
+        },
+        "val_best_constant_action": 11,
+        "val_best_constant_cost": 0.04874554241541773,
+        "val_context_oracle_cost": 0.04319020453840494
+      },
+      "groups": {
+        "original": {
+          "A00": {
+            "means": {
+              "cost": 0.11694019110291265,
+              "mse": 0.07314951557782479,
+              "subject_luma_mae": 0.2135899632703513,
+              "detail_mae": 0.016115080507006496,
+              "missing_fraction": 0.013346354360692203,
+              "radiance_mse": 0.09312108121412166,
+              "dark_mse": 0.0007399172463919967,
+              "highlight_mse": 0.0031776577816344798,
+              "rendered_repeat_variance": 7.555405488801625e-05,
+              "native_all_frame_saturation": 0.0201416015625,
+              "bright_radiance_mse": 12.174708843231201,
+              "analytic_capture_display_mse": 0.0005632112170133041,
+              "bright_detail_mae": 0.03011723980307579,
+              "psnr": 18.184951451997158,
+              "predicted_all_frame_clip": 0.0174560546875,
+              "guard_candidates": 8.5,
+              "cost_oracle": 0.04319020453840494,
+              "cost_regret": 0.07374998327577487,
+              "mse_regret": 0.05629110912559554,
+              "expected_cost": 0.11694018921116367,
+              "highlight_mse_valid_regions": 0.012710631126537919
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.04874554241541773,
+                  "common_feasible_actions": 12
+                },
+                "same_tm_oracle_actions": {
+                  "10": 4,
+                  "11": 3,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.04874554241541773,
+                  "common_feasible_actions": 12
+                },
+                "same_tm_oracle_actions": {
+                  "10": 4,
+                  "11": 3,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.04874554241541773,
+                  "common_feasible_actions": 12
+                },
+                "same_tm_oracle_actions": {
+                  "10": 4,
+                  "11": 3,
+                  "3": 1
+                }
+              }
+            ]
+          },
+          "A10": {
+            "means": {
+              "cost": 0.04874554241541773,
+              "mse": 0.01994542883039685,
+              "subject_luma_mae": 0.10612533648964018,
+              "detail_mae": 0.013943930884124711,
+              "missing_fraction": 0.3438924169167876,
+              "radiance_mse": 0.15281356250488898,
+              "dark_mse": 0.00045586641408590367,
+              "highlight_mse": 0.017088562017306685,
+              "rendered_repeat_variance": 1.4283488070532258e-05,
+              "native_all_frame_saturation": 0.360595703125,
+              "bright_radiance_mse": 18.578639030456543,
+              "analytic_capture_display_mse": 0.01321821374585852,
+              "bright_detail_mae": 0.03173920139670372,
+              "psnr": 20.592482295172754,
+              "predicted_all_frame_clip": 0.36771647119894624,
+              "guard_candidates": 8.5,
+              "policy_soft_entropy": 2.4332083761692047,
+              "policy_max_probability": 0.1269638454541564,
+              "cost_oracle": 0.04319020453840494,
+              "cost_regret": 0.005555337877012789,
+              "mse_regret": 0.0030870238842908293,
+              "expected_cost": 0.11017722287215292,
+              "highlight_mse_valid_regions": 0.06835424806922674
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.04874554241541773,
+                  "common_feasible_actions": 12
+                },
+                "same_tm_oracle_actions": {
+                  "10": 4,
+                  "11": 3,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.04874554241541773,
+                  "common_feasible_actions": 12
+                },
+                "same_tm_oracle_actions": {
+                  "10": 4,
+                  "11": 3,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.04874554241541773,
+                  "common_feasible_actions": 12
+                },
+                "same_tm_oracle_actions": {
+                  "10": 4,
+                  "11": 3,
+                  "3": 1
+                }
+              }
+            ]
+          },
+          "A01": {
+            "means": {
+              "cost": 0.04023402294842526,
+              "mse": 0.013333021304182088,
+              "subject_luma_mae": 0.1286232041505476,
+              "detail_mae": 0.018188659887528047,
+              "missing_fraction": 0.013346354360692203,
+              "radiance_mse": 0.09312108121412166,
+              "dark_mse": 0.0017860521572098758,
+              "highlight_mse": 0.0025450054090470076,
+              "rendered_repeat_variance": 6.516197702429356e-05,
+              "native_all_frame_saturation": 0.0201416015625,
+              "bright_radiance_mse": 12.174708843231201,
+              "analytic_capture_display_mse": 0.0005632112170133041,
+              "bright_detail_mae": 0.027032811505099136,
+              "psnr": 20.942750580000734,
+              "predicted_all_frame_clip": 0.0174560546875,
+              "guard_candidates": 8.5,
+              "cost_oracle": 0.02507968301263948,
+              "cost_regret": 0.015154340614875158,
+              "mse_regret": 0.008919165935367346,
+              "expected_cost": 0.04023402374392996,
+              "highlight_mse_valid_regions": 0.01018002163618803
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.02873638365417719,
+                  "common_feasible_actions": 12
+                },
+                "same_tm_oracle_actions": {
+                  "11": 4,
+                  "10": 3,
+                  "2": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.02818800148088485,
+                  "common_feasible_actions": 12
+                },
+                "same_tm_oracle_actions": {
+                  "11": 4,
+                  "10": 3,
+                  "2": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.02891008765436709,
+                  "common_feasible_actions": 12
+                },
+                "same_tm_oracle_actions": {
+                  "11": 4,
+                  "10": 3,
+                  "2": 1
+                }
+              }
+            ]
+          },
+          "A11": {
+            "means": {
+              "cost": 0.031124538227838155,
+              "mse": 0.007228491699303656,
+              "subject_luma_mae": 0.08174942387267947,
+              "detail_mae": 0.013366261972502494,
+              "missing_fraction": 0.3438924169167876,
+              "radiance_mse": 0.15281356250488898,
+              "dark_mse": 0.0008364849187879978,
+              "highlight_mse": 0.034752507849286,
+              "rendered_repeat_variance": 1.1079599469591509e-05,
+              "native_all_frame_saturation": 0.360595703125,
+              "bright_radiance_mse": 18.578639030456543,
+              "analytic_capture_display_mse": 0.01321821374585852,
+              "bright_detail_mae": 0.03174213754634062,
+              "psnr": 22.994750167715015,
+              "predicted_all_frame_clip": 0.36771647119894624,
+              "guard_candidates": 8.5,
+              "policy_soft_entropy": 0.0016378792542515914,
+              "policy_max_probability": 0.9998077328006426,
+              "cost_oracle": 0.027221698391561706,
+              "cost_regret": 0.0039028394191215434,
+              "mse_regret": 0.0020819042110815644,
+              "expected_cost": 0.031124863191507757,
+              "highlight_mse_valid_regions": 0.139010031397144
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.0310523787047714,
+                  "common_feasible_actions": 12
+                },
+                "same_tm_oracle_actions": {
+                  "11": 4,
+                  "10": 3,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.03133332054130733,
+                  "common_feasible_actions": 12
+                },
+                "same_tm_oracle_actions": {
+                  "11": 4,
+                  "10": 3,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.03098791418597102,
+                  "common_feasible_actions": 12
+                },
+                "same_tm_oracle_actions": {
+                  "11": 4,
+                  "10": 3,
+                  "6": 1
+                }
+              }
+            ]
+          }
+        },
+        "guarded": {
+          "A00": {
+            "means": {
+              "cost": 0.11694019110291265,
+              "mse": 0.07314951557782479,
+              "subject_luma_mae": 0.2135899632703513,
+              "detail_mae": 0.016115080507006496,
+              "missing_fraction": 0.013346354360692203,
+              "radiance_mse": 0.09312108121412166,
+              "dark_mse": 0.0007399172463919967,
+              "highlight_mse": 0.0031776577816344798,
+              "rendered_repeat_variance": 7.555405488801625e-05,
+              "native_all_frame_saturation": 0.0201416015625,
+              "bright_radiance_mse": 12.174708843231201,
+              "analytic_capture_display_mse": 0.0005632112170133041,
+              "bright_detail_mae": 0.03011723980307579,
+              "psnr": 18.184951451997158,
+              "predicted_all_frame_clip": 0.0174560546875,
+              "guard_candidates": 8.5,
+              "cost_oracle": 0.11039782146690413,
+              "cost_regret": 0.006542367744259536,
+              "mse_regret": 0.005603220139164478,
+              "expected_cost": 0.11694018921116367,
+              "highlight_mse_valid_regions": 0.012710631126537919
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.1171345078619197,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 1,
+                  "10": 2,
+                  "2": 1,
+                  "0": 2,
+                  "9": 1,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.1171345078619197,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 1,
+                  "10": 2,
+                  "2": 1,
+                  "0": 2,
+                  "9": 1,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.1171345078619197,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 1,
+                  "10": 2,
+                  "2": 1,
+                  "0": 2,
+                  "9": 1,
+                  "3": 1
+                }
+              }
+            ]
+          },
+          "A10": {
+            "means": {
+              "cost": 0.11192585769458674,
+              "mse": 0.06847574401763268,
+              "subject_luma_mae": 0.21135414554737508,
+              "detail_mae": 0.021046588255558163,
+              "missing_fraction": 0.006347656366415322,
+              "radiance_mse": 0.002669975567187066,
+              "dark_mse": 0.0007399172463919967,
+              "highlight_mse": 0.003050128580071032,
+              "rendered_repeat_variance": 0.0005922240940208212,
+              "native_all_frame_saturation": 0.01025390625,
+              "bright_radiance_mse": 0.2483091652393341,
+              "analytic_capture_display_mse": 0.0004165441423538141,
+              "bright_detail_mae": 0.035167843103408813,
+              "psnr": 18.268642120914336,
+              "predicted_all_frame_clip": 0.010335286380723119,
+              "guard_candidates": 8.5,
+              "policy_soft_entropy": 1.1026617283932865,
+              "policy_max_probability": 0.5297868779549996,
+              "cost_oracle": 0.11039782146690413,
+              "cost_regret": 0.0015280357329174876,
+              "mse_regret": 0.000929450907278806,
+              "expected_cost": 0.11348842901255314,
+              "highlight_mse_valid_regions": 0.012200514320284128
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "0": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.1171345078619197,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 1,
+                  "10": 2,
+                  "2": 1,
+                  "0": 2,
+                  "9": 1,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "0": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.1171345078619197,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 1,
+                  "10": 2,
+                  "2": 1,
+                  "0": 2,
+                  "9": 1,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "0": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.1171345078619197,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 1,
+                  "10": 2,
+                  "2": 1,
+                  "0": 2,
+                  "9": 1,
+                  "3": 1
+                }
+              }
+            ]
+          },
+          "A01": {
+            "means": {
+              "cost": 0.04023402294842526,
+              "mse": 0.013333021304182088,
+              "subject_luma_mae": 0.1286232041505476,
+              "detail_mae": 0.018188659887528047,
+              "missing_fraction": 0.013346354360692203,
+              "radiance_mse": 0.09312108121412166,
+              "dark_mse": 0.0017860521572098758,
+              "highlight_mse": 0.0025450054090470076,
+              "rendered_repeat_variance": 6.516197702429356e-05,
+              "native_all_frame_saturation": 0.0201416015625,
+              "bright_radiance_mse": 12.174708843231201,
+              "analytic_capture_display_mse": 0.0005632112170133041,
+              "bright_detail_mae": 0.027032811505099136,
+              "psnr": 20.942750580000734,
+              "predicted_all_frame_clip": 0.0174560546875,
+              "guard_candidates": 8.5,
+              "cost_oracle": 0.03659936393766353,
+              "cost_regret": 0.003634659806266427,
+              "mse_regret": 0.0020460132509469986,
+              "expected_cost": 0.04023402374392996,
+              "highlight_mse_valid_regions": 0.01018002163618803
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.03981624043080956,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "1": 1,
+                  "10": 2,
+                  "6": 1,
+                  "0": 2,
+                  "8": 1,
+                  "2": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.04056829260662198,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "1": 1,
+                  "10": 2,
+                  "6": 1,
+                  "0": 2,
+                  "8": 1,
+                  "2": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.040655113058164716,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "1": 1,
+                  "10": 2,
+                  "6": 1,
+                  "0": 2,
+                  "8": 1,
+                  "2": 1
+                }
+              }
+            ]
+          },
+          "A11": {
+            "means": {
+              "cost": 0.03607209597248584,
+              "mse": 0.010960900673429327,
+              "subject_luma_mae": 0.1192219127745678,
+              "detail_mae": 0.022341456196348492,
+              "missing_fraction": 0.007486979283081989,
+              "radiance_mse": 0.017673548237629195,
+              "dark_mse": 0.0016081815798922132,
+              "highlight_mse": 0.002236077736597508,
+              "rendered_repeat_variance": 0.00044323331191738663,
+              "native_all_frame_saturation": 0.0118408203125,
+              "bright_radiance_mse": 2.2262889991203942,
+              "analytic_capture_display_mse": 0.0004497220343182562,
+              "bright_detail_mae": 0.0480479896068573,
+              "psnr": 21.53503623765725,
+              "predicted_all_frame_clip": 0.011515299401556453,
+              "guard_candidates": 8.5,
+              "policy_soft_entropy": 0.19157966473324625,
+              "policy_max_probability": 0.9331504305203756,
+              "cost_oracle": 0.03544904369240006,
+              "cost_regret": 0.0006230533278236786,
+              "mse_regret": 0.00019477300035456815,
+              "expected_cost": 0.03606436882788936,
+              "highlight_mse_valid_regions": 0.008944310946390033
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "8": 2,
+                  "10": 2,
+                  "0": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.039907778264023364,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 2,
+                  "10": 2,
+                  "0": 3,
+                  "2": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "8": 2,
+                  "10": 2,
+                  "0": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 0,
+                  "cost": 0.04079836281016469,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 2,
+                  "10": 2,
+                  "0": 3,
+                  "2": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "8": 2,
+                  "10": 2,
+                  "4": 1,
+                  "0": 3
+                },
+                "action_count": 4,
+                "hard_action_modal_share": 0.375,
+                "hard_action_entropy": 1.320888343149322,
+                "same_tm_best_constant": {
+                  "action": 0,
+                  "cost": 0.040849248645827174,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 2,
+                  "10": 2,
+                  "0": 3,
+                  "2": 1
+                }
+              }
+            ]
+          }
+        },
+        "guarded_no_warmup": {
+          "A00": {
+            "means": {
+              "cost": 0.11694019110291265,
+              "mse": 0.07314951557782479,
+              "subject_luma_mae": 0.2135899632703513,
+              "detail_mae": 0.016115080507006496,
+              "missing_fraction": 0.013346354360692203,
+              "radiance_mse": 0.09312108121412166,
+              "dark_mse": 0.0007399172463919967,
+              "highlight_mse": 0.0031776577816344798,
+              "rendered_repeat_variance": 7.555405488801625e-05,
+              "native_all_frame_saturation": 0.0201416015625,
+              "bright_radiance_mse": 12.174708843231201,
+              "analytic_capture_display_mse": 0.0005632112170133041,
+              "bright_detail_mae": 0.03011723980307579,
+              "psnr": 18.184951451997158,
+              "predicted_all_frame_clip": 0.0174560546875,
+              "guard_candidates": 8.5,
+              "cost_oracle": 0.11039782146690413,
+              "cost_regret": 0.006542367744259536,
+              "mse_regret": 0.005603220139164478,
+              "expected_cost": 0.11694018921116367,
+              "highlight_mse_valid_regions": 0.012710631126537919
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.1171345078619197,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 1,
+                  "10": 2,
+                  "2": 1,
+                  "0": 2,
+                  "9": 1,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.1171345078619197,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 1,
+                  "10": 2,
+                  "2": 1,
+                  "0": 2,
+                  "9": 1,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.1171345078619197,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 1,
+                  "10": 2,
+                  "2": 1,
+                  "0": 2,
+                  "9": 1,
+                  "3": 1
+                }
+              }
+            ]
+          },
+          "A10": {
+            "means": {
+              "cost": 0.11421279952628538,
+              "mse": 0.07041424058843404,
+              "subject_luma_mae": 0.2131569324604546,
+              "detail_mae": 0.019616196455899626,
+              "missing_fraction": 0.009318033970581988,
+              "radiance_mse": 0.05071389617660316,
+              "dark_mse": 0.0007752493790273244,
+              "highlight_mse": 0.0030167578564335904,
+              "rendered_repeat_variance": 0.00041541218473639674,
+              "native_all_frame_saturation": 0.014689127604166666,
+              "bright_radiance_mse": 6.60040761033694,
+              "analytic_capture_display_mse": 0.0004441854925971711,
+              "bright_detail_mae": 0.030557520998020966,
+              "psnr": 17.906913057629264,
+              "predicted_all_frame_clip": 0.01150173608524104,
+              "guard_candidates": 8.5,
+              "policy_soft_entropy": 1.11151076653723,
+              "policy_max_probability": 0.5218735942617059,
+              "cost_oracle": 0.11039782146690413,
+              "cost_regret": 0.0038149772638765476,
+              "mse_regret": 0.0028679461635571593,
+              "expected_cost": 0.11631045174241687,
+              "highlight_mse_valid_regions": 0.012067031425734362
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "2": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.1171345078619197,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 1,
+                  "10": 2,
+                  "2": 1,
+                  "0": 2,
+                  "9": 1,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "9": 4,
+                  "0": 4
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 0.6931471805599453,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.1171345078619197,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 1,
+                  "10": 2,
+                  "2": 1,
+                  "0": 2,
+                  "9": 1,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.1171345078619197,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 1,
+                  "10": 2,
+                  "2": 1,
+                  "0": 2,
+                  "9": 1,
+                  "3": 1
+                }
+              }
+            ]
+          },
+          "A01": {
+            "means": {
+              "cost": 0.04023402294842526,
+              "mse": 0.013333021304182088,
+              "subject_luma_mae": 0.1286232041505476,
+              "detail_mae": 0.018188659887528047,
+              "missing_fraction": 0.013346354360692203,
+              "radiance_mse": 0.09312108121412166,
+              "dark_mse": 0.0017860521572098758,
+              "highlight_mse": 0.0025450054090470076,
+              "rendered_repeat_variance": 6.516197702429356e-05,
+              "native_all_frame_saturation": 0.0201416015625,
+              "bright_radiance_mse": 12.174708843231201,
+              "analytic_capture_display_mse": 0.0005632112170133041,
+              "bright_detail_mae": 0.027032811505099136,
+              "psnr": 20.942750580000734,
+              "predicted_all_frame_clip": 0.0174560546875,
+              "guard_candidates": 8.5,
+              "cost_oracle": 0.03659936393766353,
+              "cost_regret": 0.003634659806266427,
+              "mse_regret": 0.0020460132509469986,
+              "expected_cost": 0.04023402374392996,
+              "highlight_mse_valid_regions": 0.01018002163618803
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.03981624043080956,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "1": 1,
+                  "10": 2,
+                  "6": 1,
+                  "0": 2,
+                  "8": 1,
+                  "2": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.04056829260662198,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "1": 1,
+                  "10": 2,
+                  "6": 1,
+                  "0": 2,
+                  "8": 1,
+                  "2": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.040655113058164716,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "1": 1,
+                  "10": 2,
+                  "6": 1,
+                  "0": 2,
+                  "8": 1,
+                  "2": 1
+                }
+              }
+            ]
+          },
+          "A11": {
+            "means": {
+              "cost": 0.03900219172161693,
+              "mse": 0.012650413627852686,
+              "subject_luma_mae": 0.1257096816940854,
+              "detail_mae": 0.019672089188437287,
+              "missing_fraction": 0.011311849123255039,
+              "radiance_mse": 0.06297628752812064,
+              "dark_mse": 0.0017465894052293152,
+              "highlight_mse": 0.002417112613329664,
+              "rendered_repeat_variance": 0.0002005950585252473,
+              "native_all_frame_saturation": 0.017496744791666668,
+              "bright_radiance_mse": 8.19924228390058,
+              "analytic_capture_display_mse": 0.000515076231143515,
+              "bright_detail_mae": 0.03509943994383017,
+              "psnr": 21.152116345447343,
+              "predicted_all_frame_clip": 0.015597873250953853,
+              "guard_candidates": 8.5,
+              "policy_soft_entropy": 0.43567858791639064,
+              "policy_max_probability": 0.8510463299850622,
+              "cost_oracle": 0.03558042203076184,
+              "cost_regret": 0.0034217688565452895,
+              "mse_regret": 0.0019418947437467675,
+              "expected_cost": 0.03894314848973105,
+              "highlight_mse_valid_regions": 0.009668450453318655
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "0": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.03967126307543367,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 2,
+                  "10": 2,
+                  "0": 3,
+                  "2": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 3,
+                  "7": 1
+                },
+                "action_count": 4,
+                "hard_action_modal_share": 0.375,
+                "hard_action_entropy": 1.3208883431493221,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.04008210205938667,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "2": 2,
+                  "10": 2,
+                  "3": 1,
+                  "0": 2,
+                  "8": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 3,
+                  "7": 1
+                },
+                "action_count": 4,
+                "hard_action_modal_share": 0.375,
+                "hard_action_entropy": 1.3208883431493221,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.0401583684142679,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 2,
+                  "10": 2,
+                  "3": 1,
+                  "0": 2,
+                  "2": 1
+                }
+              }
+            ]
+          }
+        },
+        "inference_guard_only": {
+          "A10": {
+            "means": {
+              "cost": 0.116945720675479,
+              "mse": 0.07314517313110021,
+              "subject_luma_mae": 0.2136077391138921,
+              "detail_mae": 0.016122081569240738,
+              "missing_fraction": 0.013644748454680666,
+              "radiance_mse": 0.09312665607709884,
+              "dark_mse": 0.0007399172463919967,
+              "highlight_mse": 0.0031776577816344798,
+              "rendered_repeat_variance": 7.54346057950291e-05,
+              "native_all_frame_saturation": 0.020792643229166668,
+              "bright_radiance_mse": 12.174708843231201,
+              "analytic_capture_display_mse": 0.0005639652560300116,
+              "bright_detail_mae": 0.03011723980307579,
+              "psnr": 18.18502891740921,
+              "predicted_all_frame_clip": 0.017971462686546147,
+              "guard_candidates": 8.5,
+              "policy_soft_entropy": 2.074111262957255,
+              "policy_max_probability": 0.1803364815811316,
+              "cost_oracle": 0.11039782146690413,
+              "cost_regret": 0.00654789855858932,
+              "mse_regret": 0.005598878934203337,
+              "expected_cost": 0.11686876912911733,
+              "highlight_mse_valid_regions": 0.012710631126537919
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 3,
+                  "7": 1
+                },
+                "action_count": 4,
+                "hard_action_modal_share": 0.375,
+                "hard_action_entropy": 1.3208883431493221,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.1171345078619197,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 1,
+                  "10": 2,
+                  "2": 1,
+                  "0": 2,
+                  "9": 1,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 4
+                },
+                "action_count": 3,
+                "hard_action_modal_share": 0.5,
+                "hard_action_entropy": 1.0397207708399179,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.1171345078619197,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 1,
+                  "10": 2,
+                  "2": 1,
+                  "0": 2,
+                  "9": 1,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "9": 2,
+                  "10": 2,
+                  "6": 3,
+                  "7": 1
+                },
+                "action_count": 4,
+                "hard_action_modal_share": 0.375,
+                "hard_action_entropy": 1.3208883431493221,
+                "same_tm_best_constant": {
+                  "action": 3,
+                  "cost": 0.1171345078619197,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "8": 1,
+                  "10": 2,
+                  "2": 1,
+                  "0": 2,
+                  "9": 1,
+                  "3": 1
+                }
+              }
+            ]
+          },
+          "A11": {
+            "means": {
+              "cost": 0.08436116269634415,
+              "mse": 0.046755763491091784,
+              "subject_luma_mae": 0.18231536308303475,
+              "detail_mae": 0.017331645009107888,
+              "missing_fraction": 0.013787163804712085,
+              "radiance_mse": 0.09313107939912395,
+              "dark_mse": 0.0013389697487582453,
+              "highlight_mse": 0.0029581640070925155,
+              "rendered_repeat_variance": 9.316171332329759e-05,
+              "native_all_frame_saturation": 0.021077473958333332,
+              "bright_radiance_mse": 12.17465082804362,
+              "analytic_capture_display_mse": 0.0005718122053319045,
+              "bright_detail_mae": 0.028670738140741985,
+              "psnr": 18.96891762364375,
+              "predicted_all_frame_clip": 0.01822916668606922,
+              "guard_candidates": 8.5,
+              "policy_soft_entropy": 0.4762421306562222,
+              "policy_max_probability": 0.7502696687976519,
+              "cost_oracle": 0.08141471286459516,
+              "cost_regret": 0.002946449831749002,
+              "mse_regret": 0.002397148792321483,
+              "expected_cost": 0.08441482841347654,
+              "highlight_mse_valid_regions": 0.011832656028370062
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "8": 2,
+                  "10": 2,
+                  "6": 3,
+                  "7": 1
+                },
+                "action_count": 4,
+                "hard_action_modal_share": 0.375,
+                "hard_action_entropy": 1.3208883431493221,
+                "same_tm_best_constant": {
+                  "action": 6,
+                  "cost": 0.0849056332372129,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "1": 1,
+                  "10": 2,
+                  "2": 2,
+                  "0": 1,
+                  "8": 1,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "8": 2,
+                  "10": 2,
+                  "6": 3,
+                  "7": 1
+                },
+                "action_count": 4,
+                "hard_action_modal_share": 0.375,
+                "hard_action_entropy": 1.3208883431493221,
+                "same_tm_best_constant": {
+                  "action": 4,
+                  "cost": 0.08703007723670453,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "1": 1,
+                  "10": 2,
+                  "2": 2,
+                  "0": 1,
+                  "8": 1,
+                  "3": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "8": 2,
+                  "10": 2,
+                  "4": 3,
+                  "5": 1
+                },
+                "action_count": 4,
+                "hard_action_modal_share": 0.375,
+                "hard_action_entropy": 1.3208883431493221,
+                "same_tm_best_constant": {
+                  "action": 4,
+                  "cost": 0.08418225054629147,
+                  "common_feasible_actions": 6
+                },
+                "same_tm_oracle_actions": {
+                  "1": 1,
+                  "10": 2,
+                  "2": 2,
+                  "0": 1,
+                  "8": 1,
+                  "6": 1
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "samsung": {
+      "joint_minus_tm": {
+        "original": {
+          "mse": {
+            "mean": -7.448800897691393e-05,
+            "ci95_descriptive": [
+              -0.0002612734048549706,
+              4.901833017356683e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "cost": {
+            "mean": -0.0001484395082419123,
+            "ci95_descriptive": [
+              -0.00047957350616343404,
+              8.752779103815501e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "detail_mae": {
+            "mean": 0.0002280612825416035,
+            "ci95_descriptive": [
+              -3.708281049815265e-05,
+              0.0005345618905266746
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "highlight_mse": {
+            "mean": -2.4410042290885954e-05,
+            "ci95_descriptive": [
+              -3.155057008067709e-05,
+              -1.7269514501094818e-05
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "missing_fraction": {
+            "mean": 0.0009765625145519152,
+            "ci95_descriptive": [
+              0.0,
+              0.0020345052471384406
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "radiance_mse": {
+            "mean": 2.2392550818040036e-05,
+            "ci95_descriptive": [
+              0.0,
+              4.9570669943932444e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "native_all_frame_saturation": {
+            "mean": 0.0,
+            "ci95_descriptive": [
+              0.0,
+              0.0
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "bright_radiance_mse": {
+            "mean": 0.0,
+            "ci95_descriptive": [
+              0.0,
+              0.0
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "bright_detail_mae": {
+            "mean": -1.4131267865497704e-05,
+            "ci95_descriptive": [
+              -3.034248948097229e-05,
+              2.0799537499768816e-06
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "analytic_capture_display_mse": {
+            "mean": 1.3090037100482732e-05,
+            "ci95_descriptive": [
+              0.0,
+              2.7024419978260994e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          }
+        },
+        "guarded": {
+          "mse": {
+            "mean": -7.448800897691393e-05,
+            "ci95_descriptive": [
+              -0.0002612734048549706,
+              4.901833017356683e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "cost": {
+            "mean": -0.0001484395082419123,
+            "ci95_descriptive": [
+              -0.00047957350616343404,
+              8.752779103815501e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "detail_mae": {
+            "mean": 0.0002280612825416035,
+            "ci95_descriptive": [
+              -3.708281049815265e-05,
+              0.0005345618905266746
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "highlight_mse": {
+            "mean": -2.4410042290885954e-05,
+            "ci95_descriptive": [
+              -3.155057008067709e-05,
+              -1.7269514501094818e-05
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "missing_fraction": {
+            "mean": 0.0009765625145519152,
+            "ci95_descriptive": [
+              0.0,
+              0.0020345052471384406
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "radiance_mse": {
+            "mean": 2.2392550818040036e-05,
+            "ci95_descriptive": [
+              0.0,
+              4.9570669943932444e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "native_all_frame_saturation": {
+            "mean": 0.0,
+            "ci95_descriptive": [
+              0.0,
+              0.0
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "bright_radiance_mse": {
+            "mean": 0.0,
+            "ci95_descriptive": [
+              0.0,
+              0.0
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "bright_detail_mae": {
+            "mean": -1.4131267865497704e-05,
+            "ci95_descriptive": [
+              -3.034248948097229e-05,
+              2.0799537499768816e-06
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "analytic_capture_display_mse": {
+            "mean": 1.3090037100482732e-05,
+            "ci95_descriptive": [
+              0.0,
+              2.7024419978260994e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          }
+        },
+        "guarded_no_warmup": {
+          "mse": {
+            "mean": -6.769530106491155e-05,
+            "ci95_descriptive": [
+              -0.00025654948452332366,
+              5.852704149826007e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "cost": {
+            "mean": -0.00013094992997745702,
+            "ci95_descriptive": [
+              -0.00046559581533074396,
+              0.00011202640501627101
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "detail_mae": {
+            "mean": 0.00022616029794638413,
+            "ci95_descriptive": [
+              -4.011512452658786e-05,
+              0.0005333316357185443
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "highlight_mse": {
+            "mean": -2.4018886809547453e-05,
+            "ci95_descriptive": [
+              -3.067047024766546e-05,
+              -1.7367303371429443e-05
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "missing_fraction": {
+            "mean": 0.0009765625145519152,
+            "ci95_descriptive": [
+              0.0,
+              0.0020345052471384406
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "radiance_mse": {
+            "mean": 2.2392550818040036e-05,
+            "ci95_descriptive": [
+              0.0,
+              4.9570669943932444e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "native_all_frame_saturation": {
+            "mean": 0.0,
+            "ci95_descriptive": [
+              0.0,
+              0.0
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "bright_radiance_mse": {
+            "mean": 0.0,
+            "ci95_descriptive": [
+              0.0,
+              0.0
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "bright_detail_mae": {
+            "mean": -1.3814928630987225e-05,
+            "ci95_descriptive": [
+              -3.011773029963291e-05,
+              2.4878730376584612e-06
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "analytic_capture_display_mse": {
+            "mean": 1.3090037100482732e-05,
+            "ci95_descriptive": [
+              0.0,
+              2.7024419978260994e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          }
+        },
+        "inference_guard_only": {
+          "mse": {
+            "mean": -7.448800897691393e-05,
+            "ci95_descriptive": [
+              -0.0002612734048549706,
+              4.901833017356683e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "cost": {
+            "mean": -0.0001484395082419123,
+            "ci95_descriptive": [
+              -0.00047957350616343404,
+              8.752779103815501e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "detail_mae": {
+            "mean": 0.0002280612825416035,
+            "ci95_descriptive": [
+              -3.708281049815265e-05,
+              0.0005345618905266746
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "highlight_mse": {
+            "mean": -2.4410042290885954e-05,
+            "ci95_descriptive": [
+              -3.155057008067709e-05,
+              -1.7269514501094818e-05
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "missing_fraction": {
+            "mean": 0.0009765625145519152,
+            "ci95_descriptive": [
+              0.0,
+              0.0020345052471384406
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "radiance_mse": {
+            "mean": 2.2392550818040036e-05,
+            "ci95_descriptive": [
+              0.0,
+              4.9570669943932444e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "native_all_frame_saturation": {
+            "mean": 0.0,
+            "ci95_descriptive": [
+              0.0,
+              0.0
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "bright_radiance_mse": {
+            "mean": 0.0,
+            "ci95_descriptive": [
+              0.0,
+              0.0
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "bright_detail_mae": {
+            "mean": -1.4131267865497704e-05,
+            "ci95_descriptive": [
+              -3.034248948097229e-05,
+              2.0799537499768816e-06
+            ],
+            "independent_scenes": 2,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          },
+          "analytic_capture_display_mse": {
+            "mean": 1.3090037100482732e-05,
+            "ci95_descriptive": [
+              0.0,
+              2.7024419978260994e-05
+            ],
+            "independent_scenes": 8,
+            "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+          }
+        }
+      },
+      "candidate_audit_summary": {
+        "val_frozen_oracle_actions": {
+          "11": 6,
+          "8": 1,
+          "20": 1
+        },
+        "val_analytic_oracle_actions": {
+          "22": 4,
+          "0": 2,
+          "20": 2
+        },
+        "val_best_constant_action": 11,
+        "val_best_constant_cost": 0.11685063596814871,
+        "val_context_oracle_cost": 0.11635527200996876
+      },
+      "groups": {
+        "original": {
+          "S00": {
+            "means": {
+              "cost": 0.11737067817011848,
+              "mse": 0.07337547813949641,
+              "subject_luma_mae": 0.21480882121250033,
+              "detail_mae": 0.016591540072113276,
+              "missing_fraction": 0.01019287133749458,
+              "radiance_mse": 0.09045199932097603,
+              "dark_mse": 0.0008298891116282903,
+              "highlight_mse": 0.003185428853612393,
+              "rendered_repeat_variance": 3.392762704379493e-05,
+              "native_all_frame_saturation": 0.00933837890625,
+              "bright_radiance_mse": 11.807698249816895,
+              "analytic_capture_display_mse": 0.0005200012592467829,
+              "bright_detail_mae": 0.02983167115598917,
+              "psnr": 17.159655440651726,
+              "predicted_all_frame_clip": 0.0,
+              "guard_candidates": 24.0,
+              "cost_oracle": 0.11635527200996876,
+              "cost_regret": 0.001015407033264637,
+              "mse_regret": 0.0009850850328803062,
+              "expected_cost": 0.1173706790432334,
+              "highlight_mse_valid_regions": 0.012741715414449573
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              }
+            ]
+          },
+          "S10": {
+            "means": {
+              "cost": 0.1168506350950338,
+              "mse": 0.07289525189844426,
+              "subject_luma_mae": 0.21445568790659308,
+              "detail_mae": 0.01681720244232565,
+              "missing_fraction": 0.011169433852046495,
+              "radiance_mse": 0.09047439187179407,
+              "dark_mse": 0.0008298891116282903,
+              "highlight_mse": 0.003185428853612393,
+              "rendered_repeat_variance": 4.0717342983498384e-05,
+              "native_all_frame_saturation": 0.00933837890625,
+              "bright_radiance_mse": 11.807698249816895,
+              "analytic_capture_display_mse": 0.0005330912963472656,
+              "bright_detail_mae": 0.02983167115598917,
+              "psnr": 17.169535608729696,
+              "predicted_all_frame_clip": 0.0,
+              "guard_candidates": 24.0,
+              "policy_soft_entropy": 3.111110210418701,
+              "policy_max_probability": 0.08291103442509969,
+              "cost_oracle": 0.11635527200996876,
+              "cost_regret": 0.0004953639581799507,
+              "mse_regret": 0.0005048578605055809,
+              "expected_cost": 0.11839179873156051,
+              "highlight_mse_valid_regions": 0.012741715414449573
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              }
+            ]
+          },
+          "S01": {
+            "means": {
+              "cost": 0.039736024472707264,
+              "mse": 0.013043385139705302,
+              "subject_luma_mae": 0.1276680282317102,
+              "detail_mae": 0.019103520976689953,
+              "missing_fraction": 0.01019287133749458,
+              "radiance_mse": 0.09045199932097603,
+              "dark_mse": 0.001646373782326312,
+              "highlight_mse": 0.0026081293472088873,
+              "rendered_repeat_variance": 3.18957634135586e-05,
+              "native_all_frame_saturation": 0.00933837890625,
+              "bright_radiance_mse": 11.807698249816895,
+              "analytic_capture_display_mse": 0.0005200012592467829,
+              "bright_detail_mae": 0.026773362110058468,
+              "psnr": 20.945769373867062,
+              "predicted_all_frame_clip": 0.0,
+              "guard_candidates": 24.0,
+              "cost_oracle": 0.03881639971708258,
+              "cost_regret": 0.0009196241153404117,
+              "mse_regret": 0.00015041607548482716,
+              "expected_cost": 0.039736023832422994,
+              "highlight_mse_valid_regions": 0.01043251738883555
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.03965055977459997,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "19": 2,
+                  "0": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.040164193604141474,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "9": 1,
+                  "0": 1,
+                  "19": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.04006922082044184,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "19": 2,
+                  "0": 1
+                }
+              }
+            ]
+          },
+          "S11": {
+            "means": {
+              "cost": 0.03958758496446535,
+              "mse": 0.012968897130728388,
+              "subject_luma_mae": 0.12714359490200877,
+              "detail_mae": 0.019331582259231556,
+              "missing_fraction": 0.011169433852046495,
+              "radiance_mse": 0.09047439187179407,
+              "dark_mse": 0.0016480055880189564,
+              "highlight_mse": 0.0026020268366361656,
+              "rendered_repeat_variance": 6.160077007659008e-05,
+              "native_all_frame_saturation": 0.00933837890625,
+              "bright_radiance_mse": 11.807698249816895,
+              "analytic_capture_display_mse": 0.0005330912963472656,
+              "bright_detail_mae": 0.026759230842192967,
+              "psnr": 20.967481331905276,
+              "predicted_all_frame_clip": 0.0,
+              "guard_candidates": 24.0,
+              "policy_soft_entropy": 0.00012072909584554242,
+              "policy_max_probability": 0.9999905079603195,
+              "cost_oracle": 0.03845406048155079,
+              "cost_regret": 0.0011335245023171108,
+              "mse_regret": 0.00030716005130670965,
+              "expected_cost": 0.039587594491119184,
+              "highlight_mse_valid_regions": 0.010408107346544663
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.03922147594857961,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "19": 2,
+                  "0": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.03977338830009103,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "9": 1,
+                  "0": 1,
+                  "19": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.03976789070293307,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "19": 2,
+                  "0": 1
+                }
+              }
+            ]
+          }
+        },
+        "guarded": {
+          "S00": {
+            "means": {
+              "cost": 0.11737067817011848,
+              "mse": 0.07337547813949641,
+              "subject_luma_mae": 0.21480882121250033,
+              "detail_mae": 0.016591540072113276,
+              "missing_fraction": 0.01019287133749458,
+              "radiance_mse": 0.09045199932097603,
+              "dark_mse": 0.0008298891116282903,
+              "highlight_mse": 0.003185428853612393,
+              "rendered_repeat_variance": 3.392762704379493e-05,
+              "native_all_frame_saturation": 0.00933837890625,
+              "bright_radiance_mse": 11.807698249816895,
+              "analytic_capture_display_mse": 0.0005200012592467829,
+              "bright_detail_mae": 0.02983167115598917,
+              "psnr": 17.159655440651726,
+              "predicted_all_frame_clip": 0.0,
+              "guard_candidates": 24.0,
+              "cost_oracle": 0.11635527200996876,
+              "cost_regret": 0.001015407033264637,
+              "mse_regret": 0.0009850850328803062,
+              "expected_cost": 0.1173706790432334,
+              "highlight_mse_valid_regions": 0.012741715414449573
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              }
+            ]
+          },
+          "S10": {
+            "means": {
+              "cost": 0.1168506350950338,
+              "mse": 0.07289525189844426,
+              "subject_luma_mae": 0.21445568790659308,
+              "detail_mae": 0.01681720244232565,
+              "missing_fraction": 0.011169433852046495,
+              "radiance_mse": 0.09047439187179407,
+              "dark_mse": 0.0008298891116282903,
+              "highlight_mse": 0.003185428853612393,
+              "rendered_repeat_variance": 4.0717342983498384e-05,
+              "native_all_frame_saturation": 0.00933837890625,
+              "bright_radiance_mse": 11.807698249816895,
+              "analytic_capture_display_mse": 0.0005330912963472656,
+              "bright_detail_mae": 0.02983167115598917,
+              "psnr": 17.169535608729696,
+              "predicted_all_frame_clip": 0.0,
+              "guard_candidates": 24.0,
+              "policy_soft_entropy": 3.111110210418701,
+              "policy_max_probability": 0.08291103442509969,
+              "cost_oracle": 0.11635527200996876,
+              "cost_regret": 0.0004953639581799507,
+              "mse_regret": 0.0005048578605055809,
+              "expected_cost": 0.11839179873156051,
+              "highlight_mse_valid_regions": 0.012741715414449573
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              }
+            ]
+          },
+          "S01": {
+            "means": {
+              "cost": 0.039736024472707264,
+              "mse": 0.013043385139705302,
+              "subject_luma_mae": 0.1276680282317102,
+              "detail_mae": 0.019103520976689953,
+              "missing_fraction": 0.01019287133749458,
+              "radiance_mse": 0.09045199932097603,
+              "dark_mse": 0.001646373782326312,
+              "highlight_mse": 0.0026081293472088873,
+              "rendered_repeat_variance": 3.18957634135586e-05,
+              "native_all_frame_saturation": 0.00933837890625,
+              "bright_radiance_mse": 11.807698249816895,
+              "analytic_capture_display_mse": 0.0005200012592467829,
+              "bright_detail_mae": 0.026773362110058468,
+              "psnr": 20.945769373867062,
+              "predicted_all_frame_clip": 0.0,
+              "guard_candidates": 24.0,
+              "cost_oracle": 0.03881639971708258,
+              "cost_regret": 0.0009196241153404117,
+              "mse_regret": 0.00015041607548482716,
+              "expected_cost": 0.039736023832422994,
+              "highlight_mse_valid_regions": 0.01043251738883555
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.03965055977459997,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "19": 2,
+                  "0": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.040164193604141474,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "9": 1,
+                  "0": 1,
+                  "19": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.04006922082044184,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "19": 2,
+                  "0": 1
+                }
+              }
+            ]
+          },
+          "S11": {
+            "means": {
+              "cost": 0.03958758496446535,
+              "mse": 0.012968897130728388,
+              "subject_luma_mae": 0.12714359490200877,
+              "detail_mae": 0.019331582259231556,
+              "missing_fraction": 0.011169433852046495,
+              "radiance_mse": 0.09047439187179407,
+              "dark_mse": 0.0016480055880189564,
+              "highlight_mse": 0.0026020268366361656,
+              "rendered_repeat_variance": 6.160077007659008e-05,
+              "native_all_frame_saturation": 0.00933837890625,
+              "bright_radiance_mse": 11.807698249816895,
+              "analytic_capture_display_mse": 0.0005330912963472656,
+              "bright_detail_mae": 0.026759230842192967,
+              "psnr": 20.967481331905276,
+              "predicted_all_frame_clip": 0.0,
+              "guard_candidates": 24.0,
+              "policy_soft_entropy": 0.00012072909584554242,
+              "policy_max_probability": 0.9999905079603195,
+              "cost_oracle": 0.03845406048155079,
+              "cost_regret": 0.0011335245023171108,
+              "mse_regret": 0.00030716005130670965,
+              "expected_cost": 0.039587594491119184,
+              "highlight_mse_valid_regions": 0.010408107346544663
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.03922147594857961,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "19": 2,
+                  "0": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.03977338830009103,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "9": 1,
+                  "0": 1,
+                  "19": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.03976789070293307,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "19": 2,
+                  "0": 1
+                }
+              }
+            ]
+          }
+        },
+        "guarded_no_warmup": {
+          "S00": {
+            "means": {
+              "cost": 0.11737067817011848,
+              "mse": 0.07337547813949641,
+              "subject_luma_mae": 0.21480882121250033,
+              "detail_mae": 0.016591540072113276,
+              "missing_fraction": 0.01019287133749458,
+              "radiance_mse": 0.09045199932097603,
+              "dark_mse": 0.0008298891116282903,
+              "highlight_mse": 0.003185428853612393,
+              "rendered_repeat_variance": 3.392762704379493e-05,
+              "native_all_frame_saturation": 0.00933837890625,
+              "bright_radiance_mse": 11.807698249816895,
+              "analytic_capture_display_mse": 0.0005200012592467829,
+              "bright_detail_mae": 0.02983167115598917,
+              "psnr": 17.159655440651726,
+              "predicted_all_frame_clip": 0.0,
+              "guard_candidates": 24.0,
+              "cost_oracle": 0.11635527200996876,
+              "cost_regret": 0.001015407033264637,
+              "mse_regret": 0.0009850850328803062,
+              "expected_cost": 0.1173706790432334,
+              "highlight_mse_valid_regions": 0.012741715414449573
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              }
+            ]
+          },
+          "S10": {
+            "means": {
+              "cost": 0.1168506350950338,
+              "mse": 0.07289525189844426,
+              "subject_luma_mae": 0.21445568790659308,
+              "detail_mae": 0.01681720244232565,
+              "missing_fraction": 0.011169433852046495,
+              "radiance_mse": 0.09047439187179407,
+              "dark_mse": 0.0008298891116282903,
+              "highlight_mse": 0.003185428853612393,
+              "rendered_repeat_variance": 4.0717342983498384e-05,
+              "native_all_frame_saturation": 0.00933837890625,
+              "bright_radiance_mse": 11.807698249816895,
+              "analytic_capture_display_mse": 0.0005330912963472656,
+              "bright_detail_mae": 0.02983167115598917,
+              "psnr": 17.169535608729696,
+              "predicted_all_frame_clip": 0.0,
+              "guard_candidates": 24.0,
+              "policy_soft_entropy": 2.6445630888144174,
+              "policy_max_probability": 0.21577477812146148,
+              "cost_oracle": 0.11635527200996876,
+              "cost_regret": 0.0004953639581799507,
+              "mse_regret": 0.0005048578605055809,
+              "expected_cost": 0.11812410969287157,
+              "highlight_mse_valid_regions": 0.012741715414449573
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              }
+            ]
+          },
+          "S01": {
+            "means": {
+              "cost": 0.039736024472707264,
+              "mse": 0.013043385139705302,
+              "subject_luma_mae": 0.1276680282317102,
+              "detail_mae": 0.019103520976689953,
+              "missing_fraction": 0.01019287133749458,
+              "radiance_mse": 0.09045199932097603,
+              "dark_mse": 0.001646373782326312,
+              "highlight_mse": 0.0026081293472088873,
+              "rendered_repeat_variance": 3.18957634135586e-05,
+              "native_all_frame_saturation": 0.00933837890625,
+              "bright_radiance_mse": 11.807698249816895,
+              "analytic_capture_display_mse": 0.0005200012592467829,
+              "bright_detail_mae": 0.026773362110058468,
+              "psnr": 20.945769373867062,
+              "predicted_all_frame_clip": 0.0,
+              "guard_candidates": 24.0,
+              "cost_oracle": 0.03881639971708258,
+              "cost_regret": 0.0009196241153404117,
+              "mse_regret": 0.00015041607548482716,
+              "expected_cost": 0.039736023832422994,
+              "highlight_mse_valid_regions": 0.01043251738883555
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.03965055977459997,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "19": 2,
+                  "0": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.040164193604141474,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "9": 1,
+                  "0": 1,
+                  "19": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "11": 6,
+                  "9": 2
+                },
+                "action_count": 2,
+                "hard_action_modal_share": 0.75,
+                "hard_action_entropy": 0.5623351446188083,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.04006922082044184,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "19": 2,
+                  "0": 1
+                }
+              }
+            ]
+          },
+          "S11": {
+            "means": {
+              "cost": 0.0396050745427298,
+              "mse": 0.012975689838640392,
+              "subject_luma_mae": 0.12719755503349006,
+              "detail_mae": 0.01932968127463634,
+              "missing_fraction": 0.011169433852046495,
+              "radiance_mse": 0.09047439187179407,
+              "dark_mse": 0.0016526162895994883,
+              "highlight_mse": 0.0026021246255065003,
+              "rendered_repeat_variance": 6.158504171101716e-05,
+              "native_all_frame_saturation": 0.00933837890625,
+              "bright_radiance_mse": 11.807698249816895,
+              "analytic_capture_display_mse": 0.0005330912963472656,
+              "bright_detail_mae": 0.02675954718142748,
+              "psnr": 20.963682991570355,
+              "predicted_all_frame_clip": 0.0,
+              "guard_candidates": 24.0,
+              "policy_soft_entropy": 5.587839390160572e-06,
+              "policy_max_probability": 0.9999996622403463,
+              "cost_oracle": 0.0384713284826527,
+              "cost_regret": 0.0011337463123102982,
+              "mse_regret": 0.0003074728592764586,
+              "expected_cost": 0.03960507526062429,
+              "highlight_mse_valid_regions": 0.010408498502026001
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.03922816354315728,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "19": 2,
+                  "0": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.03980415954720229,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "9": 1,
+                  "0": 1,
+                  "19": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.03978290129452944,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "19": 2,
+                  "0": 1
+                }
+              }
+            ]
+          }
+        },
+        "inference_guard_only": {
+          "S10": {
+            "means": {
+              "cost": 0.1168506350950338,
+              "mse": 0.07289525189844426,
+              "subject_luma_mae": 0.21445568790659308,
+              "detail_mae": 0.01681720244232565,
+              "missing_fraction": 0.011169433852046495,
+              "radiance_mse": 0.09047439187179407,
+              "dark_mse": 0.0008298891116282903,
+              "highlight_mse": 0.003185428853612393,
+              "rendered_repeat_variance": 4.0717342983498384e-05,
+              "native_all_frame_saturation": 0.00933837890625,
+              "bright_radiance_mse": 11.807698249816895,
+              "analytic_capture_display_mse": 0.0005330912963472656,
+              "bright_detail_mae": 0.02983167115598917,
+              "psnr": 17.169535608729696,
+              "predicted_all_frame_clip": 0.0,
+              "guard_candidates": 24.0,
+              "policy_soft_entropy": 3.111110210418701,
+              "policy_max_probability": 0.08291103442509969,
+              "cost_oracle": 0.11635527200996876,
+              "cost_regret": 0.0004953639581799507,
+              "mse_regret": 0.0005048578605055809,
+              "expected_cost": 0.11839179873156051,
+              "highlight_mse_valid_regions": 0.012741715414449573
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.11685063596814871,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "11": 6,
+                  "8": 1,
+                  "20": 1
+                }
+              }
+            ]
+          },
+          "S11": {
+            "means": {
+              "cost": 0.03958758496446535,
+              "mse": 0.012968897130728388,
+              "subject_luma_mae": 0.12714359490200877,
+              "detail_mae": 0.019331582259231556,
+              "missing_fraction": 0.011169433852046495,
+              "radiance_mse": 0.09047439187179407,
+              "dark_mse": 0.0016480055880189564,
+              "highlight_mse": 0.0026020268366361656,
+              "rendered_repeat_variance": 6.160077007659008e-05,
+              "native_all_frame_saturation": 0.00933837890625,
+              "bright_radiance_mse": 11.807698249816895,
+              "analytic_capture_display_mse": 0.0005330912963472656,
+              "bright_detail_mae": 0.026759230842192967,
+              "psnr": 20.967481331905276,
+              "predicted_all_frame_clip": 0.0,
+              "guard_candidates": 24.0,
+              "policy_soft_entropy": 0.00012072909584554242,
+              "policy_max_probability": 0.9999905079603195,
+              "cost_oracle": 0.03845406048155079,
+              "cost_regret": 0.0011335245023171108,
+              "mse_regret": 0.00030716005130670965,
+              "expected_cost": 0.039587594491119184,
+              "highlight_mse_valid_regions": 0.010408107346544663
+            },
+            "valid_region_scene_counts": {
+              "bright": 2,
+              "all": 8
+            },
+            "seed_actions": [
+              {
+                "seed": 0,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.03922147594857961,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "19": 2,
+                  "0": 1
+                }
+              },
+              {
+                "seed": 1,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.03977338830009103,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "9": 1,
+                  "0": 1,
+                  "19": 1
+                }
+              },
+              {
+                "seed": 2,
+                "actions": {
+                  "11": 8
+                },
+                "action_count": 1,
+                "hard_action_modal_share": 1.0,
+                "hard_action_entropy": -0.0,
+                "same_tm_best_constant": {
+                  "action": 11,
+                  "cost": 0.03976789070293307,
+                  "common_feasible_actions": 24
+                },
+                "same_tm_oracle_actions": {
+                  "14": 1,
+                  "5": 3,
+                  "11": 1,
+                  "19": 2,
+                  "0": 1
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "posthoc_analytic_control": {
+    "contract": "same RAW and frontend; fixed_target applied to exposure-normalized captured image, not latent or GT",
+    "evidence": "post-hoc known analytic-target control; not a general expert-style renderer",
+    "schemes": {
+      "apple": {
+        "rule_ae": {
+          "means": {
+            "cost": 0.0031274947396013886,
+            "mse": 0.0005632111951854313,
+            "subject_luma_mae": 0.009147886245045811,
+            "detail_mae": 0.009355582413263619,
+            "missing_fraction": 0.013346354360692203,
+            "dark_mse": 2.028915560003952e-05,
+            "highlight_mse": 0.006796594941988587,
+            "radiance_mse": 0.09312108121594065,
+            "highlight_mse_valid_regions": 0.02718637976795435
+          },
+          "guarded_joint_minus_control": {
+            "mse": {
+              "mean": 0.010397689478243894,
+              "ci95_descriptive": [
+                0.004384221408084461,
+                0.0174904782561498
+              ],
+              "independent_scenes": 8,
+              "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+            },
+            "detail_mae": {
+              "mean": 0.012985873783084873,
+              "ci95_descriptive": [
+                0.004124046613772711,
+                0.020945682933233907
+              ],
+              "independent_scenes": 8,
+              "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+            },
+            "highlight_mse": {
+              "mean": -0.018242068821564317,
+              "ci95_descriptive": [
+                -0.01936948113143444,
+                -0.017114656511694193
+              ],
+              "independent_scenes": 2,
+              "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+            },
+            "radiance_mse": {
+              "mean": -0.07544753297831146,
+              "ci95_descriptive": [
+                -0.1663923095353918,
+                4.2131953250645886e-05
+              ],
+              "independent_scenes": 8,
+              "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+            }
+          }
+        },
+        "guarded_ae_only": {
+          "means": {
+            "cost": 0.0031352108635473996,
+            "mse": 0.0004165441514487611,
+            "subject_luma_mae": 0.010200657474342734,
+            "detail_mae": 0.011031639645807445,
+            "missing_fraction": 0.006347656366415322,
+            "dark_mse": 2.028915560003952e-05,
+            "highlight_mse": 0.0004276171384844929,
+            "radiance_mse": 0.0026699756308516953,
+            "highlight_mse_valid_regions": 0.0017104685539379716
+          },
+          "guarded_joint_minus_control": {
+            "mse": {
+              "mean": 0.010544356521980564,
+              "ci95_descriptive": [
+                0.004484151332007968,
+                0.01765288002485856
+              ],
+              "independent_scenes": 8,
+              "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+            },
+            "detail_mae": {
+              "mean": 0.011309816550541047,
+              "ci95_descriptive": [
+                0.003771254854655126,
+                0.01824229739164972
+              ],
+              "independent_scenes": 8,
+              "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+            },
+            "highlight_mse": {
+              "mean": 0.007233842392452061,
+              "ci95_descriptive": [
+                0.006075562443584204,
+                0.008392122341319919
+              ],
+              "independent_scenes": 2,
+              "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+            },
+            "radiance_mse": {
+              "mean": 0.0150035726067775,
+              "ci95_descriptive": [
+                1.6360713743779344e-07,
+                0.04500990299129626
+              ],
+              "independent_scenes": 8,
+              "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+            }
+          }
+        }
+      },
+      "samsung": {
+        "rule_ae": {
+          "means": {
+            "cost": 0.0033273996086791158,
+            "mse": 0.00052000125288032,
+            "subject_luma_mae": 0.010684190900065005,
+            "detail_mae": 0.009334054309874773,
+            "missing_fraction": 0.010192871563049266,
+            "dark_mse": 2.240000594611047e-05,
+            "highlight_mse": 0.006091380957514048,
+            "radiance_mse": 0.09045200118453067,
+            "highlight_mse_valid_regions": 0.02436552383005619
+          },
+          "guarded_joint_minus_control": {
+            "mse": {
+              "mean": 0.01244889587784807,
+              "ci95_descriptive": [
+                0.004785921910615798,
+                0.022660702302649348
+              ],
+              "independent_scenes": 8,
+              "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+            },
+            "detail_mae": {
+              "mean": 0.009997527949356783,
+              "ci95_descriptive": [
+                0.005371172058706483,
+                0.014625619969350122
+              ],
+              "independent_scenes": 8,
+              "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+            },
+            "highlight_mse": {
+              "mean": -0.013957416483511526,
+              "ci95_descriptive": [
+                -0.015042301888267199,
+                -0.012872531078755856
+              ],
+              "independent_scenes": 2,
+              "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+            },
+            "radiance_mse": {
+              "mean": 2.2390687263396103e-05,
+              "ci95_descriptive": [
+                -3.7266545405145735e-09,
+                4.957066903443774e-05
+              ],
+              "independent_scenes": 8,
+              "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+            }
+          }
+        },
+        "guarded_ae_only": {
+          "means": {
+            "cost": 0.003423582878895104,
+            "mse": 0.0005330912899808027,
+            "subject_luma_mae": 0.010943586006760597,
+            "detail_mae": 0.00956771313212812,
+            "missing_fraction": 0.011169434121256927,
+            "dark_mse": 2.240000594611047e-05,
+            "highlight_mse": 0.006091380957514048,
+            "radiance_mse": 0.09047439373352972,
+            "highlight_mse_valid_regions": 0.02436552383005619
+          },
+          "guarded_joint_minus_control": {
+            "mse": {
+              "mean": 0.012435805840747587,
+              "ci95_descriptive": [
+                0.004785921910615798,
+                0.02263494440133703
+              ],
+              "independent_scenes": 8,
+              "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+            },
+            "detail_mae": {
+              "mean": 0.009763869127103437,
+              "ci95_descriptive": [
+                0.005284910145564935,
+                0.014253334691359972
+              ],
+              "independent_scenes": 8,
+              "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+            },
+            "highlight_mse": {
+              "mean": -0.013957416483511526,
+              "ci95_descriptive": [
+                -0.015042301888267199,
+                -0.012872531078755856
+              ],
+              "independent_scenes": 2,
+              "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+            },
+            "radiance_mse": {
+              "mean": -1.861735654529184e-09,
+              "ci95_descriptive": [
+                -5.588844942394644e-09,
+                4.547473508864641e-12
+              ],
+              "independent_scenes": 8,
+              "unit": "validation scene; noise and training seeds averaged; NOT confirmatory"
+            }
+          }
+        }
+      }
+    }
+  },
+  "censoring_witness": {
+    "scene": "static uniform relative radiance 2; 32x32 RGGB",
+    "preview_noisy": true,
+    "final_capture_noisy": false,
+    "guard_predicted_all_frame_clipping": 0.0,
+    "guard_keeps_plan11": true,
+    "actual_native_all_frame_saturation": 1.0,
+    "max_plan_min_frame_relative_exposure": 0.940000057220459,
+    "threshold": 0.98,
+    "explanation": "censored preview is a radiance lower bound; .94 predicted scale cannot trigger .98 threshold",
+    "evidence": "separate deterministic simulator counterexample; not a quality benchmark"
+  },
+  "verification": {
+    "tests_passed": 394,
+    "tests_skipped": 9,
+    "errors": 0,
+    "failures": 0,
+    "full_test_seconds": 185.85,
+    "fresh_smoke": "12x16 Bayer, seeds0, main1 warm1, three eight-group variants; completed",
+    "independent_review": "deployment subset, empty highlight denominator, analytic target privilege, inactive Samsung guard audited"
+  }
+}

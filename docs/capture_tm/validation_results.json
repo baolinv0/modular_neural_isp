@@ -1,0 +1,550 @@
+{
+  "version": 1,
+  "created_utc": "2026-10-05T06:44:08.902200+00:00",
+  "evidence": "Held-out synthetic simulation using shipped modular style-0 weights; not real camera quality validation.",
+  "conclusion": "On this 24-scene, seed-0 synthetic run, full and same-capacity image-only policies choose the same actions on all six held-out scenes in both tone modes. No external capture-state gain is demonstrated by this ablation.",
+  "baseline_settings": {
+    "epochs": 20,
+    "width": 24,
+    "seed": 0,
+    "threads": 2,
+    "image_only": true
+  },
+  "modes": {
+    "apple": {
+      "paths": {
+        "cache": "<validation-run>/apple/oracle/oracle.pt",
+        "full_training": "<validation-run>/apple/train/training.json",
+        "full_evaluation": "<validation-run>/apple/eval/evaluation.json",
+        "image_only_training": "<validation-run>/apple-image-only/train/training.json",
+        "image_only_evaluation": "<validation-run>/apple-image-only/eval/evaluation.json"
+      },
+      "scene_counts": {
+        "train": 14,
+        "val": 4,
+        "test": 6
+      },
+      "num_actions": 12,
+      "noise_repeats": 3,
+      "renderer": {
+        "backend": "modular",
+        "tm_mode": "apple",
+        "render_intent_ev": 0.0,
+        "checkpoint": "shipped-style-0",
+        "checkpoint_sha256": "5137b1a9da936814544a0259add95530e124d954fac8e08ece61333be630c09f",
+        "renderer_identity": "modular-photofinishing:photofinishing_s24-style-0.pth:sha256=5137b1a9da936814544a0259add95530e124d954fac8e08ece61333be630c09f",
+        "implementation_sha256": "100864006c96dc10a6aabf1dd6530d04adfe1dad53729d86c05806bf9ddec4c5",
+        "frozen": true,
+        "frontend": "fixed WB/CCM; no denoiser",
+        "objective_weights": {
+          "reconstruction": 1.0,
+          "subject_luma": 0.2,
+          "raw_saturation": 0.04,
+          "rendered_noise": 0.1,
+          "noiseless_capture_bias": 0.1
+        }
+      },
+      "model_kwargs": {
+        "full": {
+          "num_actions": 12,
+          "width": 24,
+          "histogram_bins": 32,
+          "history_length": 3,
+          "use_auxiliary": true
+        },
+        "image_only": {
+          "num_actions": 12,
+          "width": 24,
+          "histogram_bins": 32,
+          "history_length": 3,
+          "use_auxiliary": false
+        },
+        "exactly_equal": false,
+        "differences": {
+          "use_auxiliary": {
+            "full": true,
+            "image_only": false
+          }
+        },
+        "capacity_kwargs_equal": true
+      },
+      "parameters": {
+        "full_logged": 53881,
+        "image_only_logged": 53881,
+        "full_actual": 53881,
+        "image_only_actual": 53881,
+        "state_dict_shapes_equal": true
+      },
+      "training": {
+        "full_epochs": 20,
+        "image_only_epochs": 20,
+        "full_seed": 0,
+        "image_only_seed": 0,
+        "full_best_epoch": 1,
+        "image_only_best_epoch": 1
+      },
+      "shared_cache_checkpoint_identity": {
+        "actions": true,
+        "renderer": true,
+        "manifest_sha256": true,
+        "dataset_sha256": true,
+        "sensor": true,
+        "constraints": true,
+        "protocol": true
+      },
+      "test_scenes": 6,
+      "metrics": {
+        "full": {
+          "baseline": {
+            "mean_cost": 0.002207471950290104,
+            "mean_regret": 0.00046055117854848504,
+            "mean_mse": 0.00013055030649411492,
+            "mean_subject_luma_mae": 0.00831592494311432,
+            "mean_raw_saturation": 0.010014286575218042,
+            "mean_rendered_noise_mse": 9.02917017810978e-05,
+            "mean_noiseless_capture_bias_mse": 4.1358655607837136e-05,
+            "mean_exposure_s": 0.0083333333,
+            "mean_capture_time_s": 0.010333333299999999,
+            "oracle_top1": 0.3333333333333333
+          },
+          "physics": {
+            "mean_cost": 0.00653893572355931,
+            "mean_regret": 0.004792015029427906,
+            "mean_mse": 0.0010242768597284642,
+            "mean_subject_luma_mae": 0.024895936095466215,
+            "mean_raw_saturation": 0.011054145249848565,
+            "mean_rendered_noise_mse": 0.0002088511634307603,
+            "mean_noiseless_capture_bias_mse": 0.0007242090621180827,
+            "mean_exposure_s": 0.004166666700000001,
+            "mean_capture_time_s": 0.0061666667,
+            "oracle_top1": 0.16666666666666666
+          },
+          "oracle": {
+            "mean_cost": 0.0017469207717416186,
+            "mean_regret": 0.0,
+            "mean_mse": 0.00015911218846061578,
+            "mean_subject_luma_mae": 0.006935720099136233,
+            "mean_raw_saturation": 0.004616066037366788,
+            "mean_rendered_noise_mse": 0.0001578323438783021,
+            "mean_noiseless_capture_bias_mse": 2.3862566607135705e-06,
+            "mean_exposure_s": 0.005555555566666668,
+            "mean_capture_time_s": 0.007555555566666666,
+            "oracle_top1": 1.0
+          },
+          "policy": {
+            "mean_cost": 0.0017567307804711163,
+            "mean_regret": 9.810008729497591e-06,
+            "mean_mse": 0.0001841614551570577,
+            "mean_subject_luma_mae": 0.00739065728460749,
+            "mean_raw_saturation": 0.001898871463102599,
+            "mean_rendered_noise_mse": 0.00018456389079801738,
+            "mean_noiseless_capture_bias_mse": 2.656949410114369e-07,
+            "mean_exposure_s": 0.004166666700000001,
+            "mean_capture_time_s": 0.0061666667,
+            "oracle_top1": 0.6666666666666666
+          }
+        },
+        "image_only": {
+          "baseline": {
+            "mean_cost": 0.002207471950290104,
+            "mean_regret": 0.00046055117854848504,
+            "mean_mse": 0.00013055030649411492,
+            "mean_subject_luma_mae": 0.00831592494311432,
+            "mean_raw_saturation": 0.010014286575218042,
+            "mean_rendered_noise_mse": 9.02917017810978e-05,
+            "mean_noiseless_capture_bias_mse": 4.1358655607837136e-05,
+            "mean_exposure_s": 0.0083333333,
+            "mean_capture_time_s": 0.010333333299999999,
+            "oracle_top1": 0.3333333333333333
+          },
+          "physics": {
+            "mean_cost": 0.00653893572355931,
+            "mean_regret": 0.004792015029427906,
+            "mean_mse": 0.0010242768597284642,
+            "mean_subject_luma_mae": 0.024895936095466215,
+            "mean_raw_saturation": 0.011054145249848565,
+            "mean_rendered_noise_mse": 0.0002088511634307603,
+            "mean_noiseless_capture_bias_mse": 0.0007242090621180827,
+            "mean_exposure_s": 0.004166666700000001,
+            "mean_capture_time_s": 0.0061666667,
+            "oracle_top1": 0.16666666666666666
+          },
+          "oracle": {
+            "mean_cost": 0.0017469207717416186,
+            "mean_regret": 0.0,
+            "mean_mse": 0.00015911218846061578,
+            "mean_subject_luma_mae": 0.006935720099136233,
+            "mean_raw_saturation": 0.004616066037366788,
+            "mean_rendered_noise_mse": 0.0001578323438783021,
+            "mean_noiseless_capture_bias_mse": 2.3862566607135705e-06,
+            "mean_exposure_s": 0.005555555566666668,
+            "mean_capture_time_s": 0.007555555566666666,
+            "oracle_top1": 1.0
+          },
+          "policy": {
+            "mean_cost": 0.0017567307804711163,
+            "mean_regret": 9.810008729497591e-06,
+            "mean_mse": 0.0001841614551570577,
+            "mean_subject_luma_mae": 0.00739065728460749,
+            "mean_raw_saturation": 0.001898871463102599,
+            "mean_rendered_noise_mse": 0.00018456389079801738,
+            "mean_noiseless_capture_bias_mse": 2.656949410114369e-07,
+            "mean_exposure_s": 0.004166666700000001,
+            "mean_capture_time_s": 0.0061666667,
+            "oracle_top1": 0.6666666666666666
+          }
+        },
+        "full_policy_minus_image_only_policy": {
+          "mean_cost": 0.0,
+          "mean_regret": 0.0,
+          "mean_mse": 0.0,
+          "mean_subject_luma_mae": 0.0,
+          "mean_raw_saturation": 0.0,
+          "mean_rendered_noise_mse": 0.0,
+          "mean_noiseless_capture_bias_mse": 0.0,
+          "mean_exposure_s": 0.0,
+          "mean_capture_time_s": 0.0,
+          "oracle_top1": 0.0
+        }
+      },
+      "comparisons": {
+        "all_policy_metrics_equal": true,
+        "all_method_metrics_equal": true,
+        "all_policy_per_scene_rows_equal": true,
+        "full_action_indices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "image_only_action_indices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "observations_only_inference": {
+        "input": "<validation-run>/apple/heldout-observations.npz",
+        "input_fields": [
+          "capture_state",
+          "previews"
+        ],
+        "input_shapes": {
+          "capture_state": [
+            3,
+            3
+          ],
+          "previews": [
+            3,
+            3,
+            64,
+            64
+          ]
+        },
+        "heldout_scene_id": "demo_018",
+        "heldout_split": "test",
+        "output": "<validation-run>/apple/observations-request.json",
+        "execution": "request_only",
+        "observation_frame_id": 7,
+        "requested_frame_id": 8,
+        "effective_frame_id": 9,
+        "control_delay_frames": 1,
+        "remaining_capture_s": 0.04,
+        "future_center_offset_s": 0.025,
+        "action_index": 0,
+        "requested_action": {
+          "exposure_s": 0.0041666667,
+          "analog_gain": 1.0,
+          "digital_gain": 1.0
+        },
+        "capture_with_readout_s": 0.0061666667,
+        "within_remaining_budget_and_physical_limits": true,
+        "observation_timing_legal": true,
+        "future_capture_start_s": 0.02291666665,
+        "last_observation_ready_s": 0.0061666666499999995,
+        "action_matches_checkpoint_candidate": true,
+        "frame_ids_match_observation_7_request_8_effective_9": true,
+        "observation_only_fields": true
+      }
+    },
+    "samsung": {
+      "paths": {
+        "cache": "<validation-run>/samsung/oracle/oracle.pt",
+        "full_training": "<validation-run>/samsung/train/training.json",
+        "full_evaluation": "<validation-run>/samsung/eval/evaluation.json",
+        "image_only_training": "<validation-run>/samsung-image-only/train/training.json",
+        "image_only_evaluation": "<validation-run>/samsung-image-only/eval/evaluation.json"
+      },
+      "scene_counts": {
+        "train": 14,
+        "val": 4,
+        "test": 6
+      },
+      "num_actions": 12,
+      "noise_repeats": 3,
+      "renderer": {
+        "backend": "modular",
+        "tm_mode": "samsung",
+        "render_intent_ev": 0.0,
+        "checkpoint": "shipped-style-0",
+        "checkpoint_sha256": "5137b1a9da936814544a0259add95530e124d954fac8e08ece61333be630c09f",
+        "renderer_identity": "modular-photofinishing:photofinishing_s24-style-0.pth:sha256=5137b1a9da936814544a0259add95530e124d954fac8e08ece61333be630c09f",
+        "implementation_sha256": "100864006c96dc10a6aabf1dd6530d04adfe1dad53729d86c05806bf9ddec4c5",
+        "frozen": true,
+        "frontend": "fixed WB/CCM; no denoiser",
+        "objective_weights": {
+          "reconstruction": 1.0,
+          "subject_luma": 0.2,
+          "raw_saturation": 0.04,
+          "rendered_noise": 0.1,
+          "noiseless_capture_bias": 0.1
+        }
+      },
+      "model_kwargs": {
+        "full": {
+          "num_actions": 12,
+          "width": 24,
+          "histogram_bins": 32,
+          "history_length": 3,
+          "use_auxiliary": true
+        },
+        "image_only": {
+          "num_actions": 12,
+          "width": 24,
+          "histogram_bins": 32,
+          "history_length": 3,
+          "use_auxiliary": false
+        },
+        "exactly_equal": false,
+        "differences": {
+          "use_auxiliary": {
+            "full": true,
+            "image_only": false
+          }
+        },
+        "capacity_kwargs_equal": true
+      },
+      "parameters": {
+        "full_logged": 53881,
+        "image_only_logged": 53881,
+        "full_actual": 53881,
+        "image_only_actual": 53881,
+        "state_dict_shapes_equal": true
+      },
+      "training": {
+        "full_epochs": 20,
+        "image_only_epochs": 20,
+        "full_seed": 0,
+        "image_only_seed": 0,
+        "full_best_epoch": 1,
+        "image_only_best_epoch": 1
+      },
+      "shared_cache_checkpoint_identity": {
+        "actions": true,
+        "renderer": true,
+        "manifest_sha256": true,
+        "dataset_sha256": true,
+        "sensor": true,
+        "constraints": true,
+        "protocol": true
+      },
+      "test_scenes": 6,
+      "metrics": {
+        "full": {
+          "baseline": {
+            "mean_cost": 0.0015728780029652019,
+            "mean_regret": 1.1670539000382027e-05,
+            "mean_mse": 8.897154839360155e-05,
+            "mean_subject_luma_mae": 0.005371650215238333,
+            "mean_raw_saturation": 0.010014286575218042,
+            "mean_rendered_noise_mse": 8.607331983512267e-05,
+            "mean_noiseless_capture_bias_mse": 3.9761471365788266e-06,
+            "mean_exposure_s": 0.0083333333,
+            "mean_capture_time_s": 0.010333333299999999,
+            "oracle_top1": 0.8333333333333334
+          },
+          "physics": {
+            "mean_cost": 0.006673305023772021,
+            "mean_regret": 0.005112097656819969,
+            "mean_mse": 0.0010904332132971224,
+            "mean_subject_luma_mae": 0.025205728830769658,
+            "mean_raw_saturation": 0.011054145249848565,
+            "mean_rendered_noise_mse": 0.0002038509458846723,
+            "mean_noiseless_capture_bias_mse": 0.000791752207068915,
+            "mean_exposure_s": 0.004166666700000001,
+            "mean_capture_time_s": 0.0061666667,
+            "oracle_top1": 0.0
+          },
+          "oracle": {
+            "mean_cost": 0.00156120746396482,
+            "mean_regret": 0.0,
+            "mean_mse": 0.00010181234392803162,
+            "mean_subject_luma_mae": 0.005510393840571244,
+            "mean_raw_saturation": 0.008676034184948852,
+            "mean_rendered_noise_mse": 0.00010109456464609441,
+            "mean_noiseless_capture_bias_mse": 1.655040297994977e-06,
+            "mean_exposure_s": 0.007638888866666668,
+            "mean_capture_time_s": 0.009638888866666667,
+            "oracle_top1": 1.0
+          },
+          "policy": {
+            "mean_cost": 0.001715694573552658,
+            "mean_regret": 0.00015448710958783826,
+            "mean_mse": 0.00017864676677466682,
+            "mean_subject_luma_mae": 0.007215644620979826,
+            "mean_raw_saturation": 0.001898871463102599,
+            "mean_rendered_noise_mse": 0.0001791534474856841,
+            "mean_noiseless_capture_bias_mse": 4.858671758256605e-07,
+            "mean_exposure_s": 0.004166666700000001,
+            "mean_capture_time_s": 0.0061666667,
+            "oracle_top1": 0.16666666666666666
+          }
+        },
+        "image_only": {
+          "baseline": {
+            "mean_cost": 0.0015728780029652019,
+            "mean_regret": 1.1670539000382027e-05,
+            "mean_mse": 8.897154839360155e-05,
+            "mean_subject_luma_mae": 0.005371650215238333,
+            "mean_raw_saturation": 0.010014286575218042,
+            "mean_rendered_noise_mse": 8.607331983512267e-05,
+            "mean_noiseless_capture_bias_mse": 3.9761471365788266e-06,
+            "mean_exposure_s": 0.0083333333,
+            "mean_capture_time_s": 0.010333333299999999,
+            "oracle_top1": 0.8333333333333334
+          },
+          "physics": {
+            "mean_cost": 0.006673305023772021,
+            "mean_regret": 0.005112097656819969,
+            "mean_mse": 0.0010904332132971224,
+            "mean_subject_luma_mae": 0.025205728830769658,
+            "mean_raw_saturation": 0.011054145249848565,
+            "mean_rendered_noise_mse": 0.0002038509458846723,
+            "mean_noiseless_capture_bias_mse": 0.000791752207068915,
+            "mean_exposure_s": 0.004166666700000001,
+            "mean_capture_time_s": 0.0061666667,
+            "oracle_top1": 0.0
+          },
+          "oracle": {
+            "mean_cost": 0.00156120746396482,
+            "mean_regret": 0.0,
+            "mean_mse": 0.00010181234392803162,
+            "mean_subject_luma_mae": 0.005510393840571244,
+            "mean_raw_saturation": 0.008676034184948852,
+            "mean_rendered_noise_mse": 0.00010109456464609441,
+            "mean_noiseless_capture_bias_mse": 1.655040297994977e-06,
+            "mean_exposure_s": 0.007638888866666668,
+            "mean_capture_time_s": 0.009638888866666667,
+            "oracle_top1": 1.0
+          },
+          "policy": {
+            "mean_cost": 0.001715694573552658,
+            "mean_regret": 0.00015448710958783826,
+            "mean_mse": 0.00017864676677466682,
+            "mean_subject_luma_mae": 0.007215644620979826,
+            "mean_raw_saturation": 0.001898871463102599,
+            "mean_rendered_noise_mse": 0.0001791534474856841,
+            "mean_noiseless_capture_bias_mse": 4.858671758256605e-07,
+            "mean_exposure_s": 0.004166666700000001,
+            "mean_capture_time_s": 0.0061666667,
+            "oracle_top1": 0.16666666666666666
+          }
+        },
+        "full_policy_minus_image_only_policy": {
+          "mean_cost": 0.0,
+          "mean_regret": 0.0,
+          "mean_mse": 0.0,
+          "mean_subject_luma_mae": 0.0,
+          "mean_raw_saturation": 0.0,
+          "mean_rendered_noise_mse": 0.0,
+          "mean_noiseless_capture_bias_mse": 0.0,
+          "mean_exposure_s": 0.0,
+          "mean_capture_time_s": 0.0,
+          "oracle_top1": 0.0
+        }
+      },
+      "comparisons": {
+        "all_policy_metrics_equal": true,
+        "all_method_metrics_equal": true,
+        "all_policy_per_scene_rows_equal": true,
+        "full_action_indices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "image_only_action_indices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "observations_only_inference": {
+        "input": "<validation-run>/samsung/heldout-observations.npz",
+        "input_fields": [
+          "capture_state",
+          "previews"
+        ],
+        "input_shapes": {
+          "capture_state": [
+            3,
+            3
+          ],
+          "previews": [
+            3,
+            3,
+            64,
+            64
+          ]
+        },
+        "heldout_scene_id": "demo_018",
+        "heldout_split": "test",
+        "output": "<validation-run>/samsung/observations-request.json",
+        "execution": "request_only",
+        "observation_frame_id": 7,
+        "requested_frame_id": 8,
+        "effective_frame_id": 9,
+        "control_delay_frames": 1,
+        "remaining_capture_s": 0.04,
+        "future_center_offset_s": 0.025,
+        "action_index": 0,
+        "requested_action": {
+          "exposure_s": 0.0041666667,
+          "analog_gain": 1.0,
+          "digital_gain": 1.0
+        },
+        "capture_with_readout_s": 0.0061666667,
+        "within_remaining_budget_and_physical_limits": true,
+        "observation_timing_legal": true,
+        "future_capture_start_s": 0.02291666665,
+        "last_observation_ready_s": 0.0061666666499999995,
+        "action_matches_checkpoint_candidate": true,
+        "frame_ids_match_observation_7_request_8_effective_9": true,
+        "observation_only_fields": true
+      }
+    }
+  },
+  "software_checks": {
+    "pytest_passed": 136,
+    "pytorch": "2.5.1+cpu",
+    "numpy": "1.26.4",
+    "independent_review_roles": [
+      "AE",
+      "TM",
+      "ISP"
+    ],
+    "root_rechecked_checkpoints_metrics_and_inference": true,
+    "source_scope": "C1 single future capture; fixed modular renderer; no real camera quality claim"
+  },
+  "metric_interpretation": "Apple composite cost improves vs fixed capture but display MSE worsens. Samsung learned policy does not beat fixed capture. Neither mode shows external metadata gain over same-capacity image-only."
+}

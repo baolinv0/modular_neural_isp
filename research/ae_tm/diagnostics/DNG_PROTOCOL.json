@@ -1,0 +1,147 @@
+{
+  "protocol_id": "local-dng-green-relative-20261009-v1",
+  "source_groups": [
+    {
+      "group_id": "g00",
+      "pair_ids": [
+        0,
+        1
+      ],
+      "split": "train",
+      "note": "indoor clock wall"
+    },
+    {
+      "group_id": "g01",
+      "pair_ids": [
+        2,
+        3,
+        4,
+        5,
+        8,
+        9
+      ],
+      "split": "development",
+      "note": "TV-room views, merged conservatively"
+    },
+    {
+      "group_id": "g02",
+      "pair_ids": [
+        6,
+        7
+      ],
+      "split": "train",
+      "note": "glass hallway"
+    },
+    {
+      "group_id": "g03",
+      "pair_ids": [
+        10,
+        11
+      ],
+      "split": "train",
+      "note": "marble wall"
+    },
+    {
+      "group_id": "g04",
+      "pair_ids": [
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "split": "diagnostic",
+      "note": "lobby/poster backgrounds merged conservatively"
+    },
+    {
+      "group_id": "g05",
+      "pair_ids": [
+        19,
+        20
+      ],
+      "split": "train",
+      "note": "glass storefront"
+    },
+    {
+      "group_id": "g06",
+      "pair_ids": [
+        21,
+        22
+      ],
+      "split": "diagnostic",
+      "note": "dark entrance and bright backlight"
+    },
+    {
+      "group_id": "g07",
+      "pair_ids": [
+        23,
+        24,
+        25
+      ],
+      "split": "train",
+      "note": "external shop LEDs"
+    },
+    {
+      "group_id": "g08",
+      "pair_ids": [
+        26,
+        27
+      ],
+      "split": "development",
+      "note": "street sign view"
+    },
+    {
+      "group_id": "g09",
+      "pair_ids": [
+        28,
+        29,
+        30
+      ],
+      "split": "train",
+      "note": "coffee shop street view"
+    },
+    {
+      "group_id": "g10",
+      "pair_ids": [
+        31,
+        32,
+        33
+      ],
+      "split": "diagnostic",
+      "note": "yellow external building light"
+    }
+  ],
+  "independence_limit": "11 manually declared background groups from one capture session; correlated locations, frames, and both cameras are not independent. Diagnostic split is not a pristine formal test.",
+  "grouping_provenance": "Manual background grouping from local contact sheet before any new risk metrics; related TV-room/lobby views merged.",
+  "patch_seed": 1909,
+  "patches_per_source": 8,
+  "patch_size": 64,
+  "target": "sqrt(x/(x+0.5)) of already bounded green source; no expert GT claim",
+  "actions": [
+    0.125,
+    0.25,
+    0.5,
+    1,
+    2,
+    4,
+    8
+  ],
+  "sensor": {
+    "full_well": 1000,
+    "read_sd": 4,
+    "adc_max": 4095,
+    "calibration": "engineering assumptions matching new N0 toy, not camera calibration"
+  },
+  "preview": {
+    "count": 3,
+    "exposure": 0.25,
+    "noise": "independent of future candidate captures"
+  },
+  "rules": "fit only train/development, freeze before diagnostic risk; identical previews and capture realizations",
+  "masks": "all source green pixels, including source zeros/white; no inferred clean HDR",
+  "statistics": "paired group means; cluster bootstrap descriptive due one session, three seeds19/37/73",
+  "public_outputs": "code, protocol and aggregate/source metrics only; no pixels, caches or photographs",
+  "formal_test": "not accessed; all user local data evaluation labelled diagnostic"
+}
