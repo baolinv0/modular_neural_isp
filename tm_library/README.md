@@ -8,6 +8,8 @@
 
 方案动机、芯片执行条件、厂商公开依据及 A–E 的实验定位见 [语义 TM 动机文档](../docs/tm_library_motivation.md)。
 
+训练完成后的配置、日志、逐图指标和案例回传，请使用 [五方案实验回传模板](../docs/tm_experiment_handoff/README.md)。模板包含报告、8 张 CSV 空表、字段字典及评估协议；缺失项如实记录，不要求先重训。
+
 ## CPU 快速开始
 
 以下命令均在仓库根目录执行。推荐 Python 3.10 或 3.11；安装 CUDA 版本 PyTorch 时按本机环境选择对应 wheel。

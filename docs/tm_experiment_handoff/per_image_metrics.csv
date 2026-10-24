@@ -1,0 +1,1 @@
+﻿eval_id,sample_id,status,failure_reason,psnr,ssim,luma_l1,delta_e76,chroma_l1,hue_degrees,hue_valid_fraction,output_endpoint_fraction,linear_below_zero_fraction,linear_above_one_fraction,prediction_path,raw_metrics_path

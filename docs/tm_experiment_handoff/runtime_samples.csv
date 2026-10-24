@@ -1,0 +1,1 @@
+﻿eval_id,measurement_id,scope,sample_id,device,height,width,batch_size,dtype,compile_mode,warmup_count,repeat_index,latency_ms,peak_allocated_mib,peak_reserved_mib,status,notes

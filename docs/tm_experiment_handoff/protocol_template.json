@@ -1,0 +1,67 @@
+{
+  "template_only": true,
+  "protocol_id": null,
+  "input_contract": {
+    "encoding": null,
+    "layout": null,
+    "range": null,
+    "normalization": null,
+    "exposure_scale": null,
+    "array_key_if_npz": null,
+    "upstream_preprocessing": null
+  },
+  "target": {
+    "type": null,
+    "encoding": null,
+    "alignment_method": null,
+    "invalid_pixel_handling": null
+  },
+  "geometry": {
+    "evaluation_resize": null,
+    "crop_border": null,
+    "tile_and_padding": null
+  },
+  "metrics": {
+    "code_commit": null,
+    "script": null,
+    "command": null,
+    "evaluation_on_float_or_exported_image": null,
+    "psnr": {
+      "range": null,
+      "channel": null,
+      "mse_floor": null,
+      "aggregation": null
+    },
+    "ssim": {
+      "implementation_version": null,
+      "channel": null,
+      "window_size": null,
+      "sigma": null,
+      "padding": null,
+      "covariance_definition": null
+    },
+    "optional_metrics_and_implementations": {},
+    "clamp_stages": null
+  },
+  "region_evaluation": {
+    "roi_definition_id": null,
+    "mask_source": null,
+    "shared_across_methods": null,
+    "validity_confidence_weighting": null,
+    "minimum_area_and_thresholds": null
+  },
+  "timing": {
+    "api": null,
+    "synchronization": null,
+    "scope_definition": null,
+    "excluded_work": null,
+    "warmup_and_repeats": null,
+    "memory_reset_and_scope": null
+  },
+  "case_selection": {
+    "random_seed": null,
+    "rule": null,
+    "roi_coordinate_convention": "xyxy, pixel, half-open"
+  },
+  "notes": "null 代表工程人员尚未填写，不是已执行默认值。复制文件以记录多种协议。"
+}
