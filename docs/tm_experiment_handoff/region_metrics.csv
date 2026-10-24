@@ -1,0 +1,1 @@
+﻿eval_id,sample_id,region,roi_definition_id,status,area_fraction,weight_sum,psnr,luma_l1,delta_e76,pred_mean_luma,target_mean_luma,pred_mean_Lstar,target_mean_Lstar,pred_mean_chroma,target_mean_chroma,notes

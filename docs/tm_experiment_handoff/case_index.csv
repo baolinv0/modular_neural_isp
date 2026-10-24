@@ -1,0 +1,1 @@
+﻿case_id,sample_id,eval_id,selected_by,selection_rule,input_display_path,target_display_path,prediction_path,float_prediction_path,roi_boxes_json,semantics_path,confidence_path,diagnostic_npz_path,observation

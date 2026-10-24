@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.superpowers/
+tm_runs/
+tm_smoke_data/
+data/tm-library-synthetic/
+runs/tm_library/
+*.egg-info/

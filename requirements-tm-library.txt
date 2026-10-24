@@ -1,0 +1,9 @@
+# Focused CPU/GPU library and test dependencies; install a suitable torch wheel first.
+torch>=2.5,<3
+numpy>=1.26,<3
+opencv-python-headless>=4.10
+Pillow>=10
+PyYAML>=6
+pytest>=8
+einops>=0.8
+tifffile>=2024.8

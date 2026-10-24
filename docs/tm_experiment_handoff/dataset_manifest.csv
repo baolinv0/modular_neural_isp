@@ -1,0 +1,1 @@
+﻿dataset_id,sample_id,scene_id,subject_id,burst_id,split,camera,scenario_tags,input_path,input_sha256,target_path,target_sha256,target_type,height,width,valid_mask_path,roi_path,roi_source,alignment_status,notes
