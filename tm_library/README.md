@@ -8,7 +8,7 @@
 
 方案动机、芯片执行条件、厂商公开依据及 A–E 的实验定位见 [语义 TM 动机文档](../docs/tm_library_motivation.md)。
 
-训练完成后的配置、日志、逐图指标和案例回传，请使用 [五方案实验回传模板](../docs/tm_experiment_handoff/README.md)。模板包含报告、8 张 CSV 空表、字段字典及评估协议；缺失项如实记录，不要求先重训。
+训练完成后的实验回传，请使用 [单文件报告模板](../docs/tm_experiment_handoff/REPORT_SINGLE_FILE_TEMPLATE.md)：只需填写一份 Markdown 并复制粘贴正文，无需另传 CSV、图片或日志包；已有结果如实填写，不要求先重训。
 
 ## CPU 快速开始
 

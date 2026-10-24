@@ -1,3 +1,5 @@
+> **单文件回传请改用 [REPORT_SINGLE_FILE_TEMPLATE.md](REPORT_SINGLE_FILE_TEMPLATE.md)。本文件保留为历史多文件归档模板，其中 CSV/图片/日志包要求不适用于复制粘贴回传。**
+
 # TM 五方案实验回传报告
 
 模板版本：1.0；日期：2026-10-24。适用于原始 LTM baseline 与 A–E 的配对训练结果，也允许记录组合方案。
